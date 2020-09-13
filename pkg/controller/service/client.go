@@ -36,7 +36,7 @@ func (client *Client) AssignPipeline(pipelineID uint64) error {
 	}
 
 	// Send request to client
-	response, err := connection.Request("gravity.eventstore."+client.id+".rpc", data, time.Second*5)
+	response, err := connection.Request("gravity.eventstore."+client.id+".AssignPipeline", data, time.Second*5)
 	if err != nil {
 		return err
 	}
@@ -71,7 +71,7 @@ func (client *Client) RevokePipeline(pipelineID uint64) error {
 	}
 
 	// Send request to client
-	response, err := connection.Request("gravity.eventstore."+client.id+".rpc", data, time.Second*5)
+	response, err := connection.Request("gravity.eventstore."+client.id+".RevokePipeline", data, time.Second*5)
 	if err != nil {
 		return err
 	}
