@@ -22,26 +22,77 @@ func NewService(a app.App) *Service {
 
 func (service *Service) GetClientCount(ctx context.Context, in *pb.GetClientCountRequest) (*pb.GetClientCountReply, error) {
 
+	controller := service.app.GetController()
+
 	return &pb.GetClientCountReply{
-		Count: 0,
+		Count: controller.GetClientCount(),
 	}, nil
 }
 
 func (service *Service) GetPipelineCount(ctx context.Context, in *pb.GetPipelineCountRequest) (*pb.GetPipelineCountReply, error) {
 
+	controller := service.app.GetController()
+
 	return &pb.GetPipelineCountReply{
-		Count: 0,
+		Count: controller.GetPipelineCount(),
 	}, nil
 }
 
 func (service *Service) Register(ctx context.Context, in *pb.RegisterRequest) (*pb.RegisterReply, error) {
+
+	controller := service.app.GetController()
+
+	err := controller.Register(in.ClientID)
+	if err != nil {
+		return &pb.RegisterReply{
+			Success: false,
+			Reason:  err.Error(),
+		}, nil
+	}
 
 	return &pb.RegisterReply{
 		Success: true,
 	}, nil
 }
 
+func (service *Service) Unregister(ctx context.Context, in *pb.UnregisterRequest) (*pb.UnregisterReply, error) {
+
+	controller := service.app.GetController()
+
+	err := controller.Unregister(in.ClientID)
+	if err != nil {
+		return &pb.UnregisterReply{
+			Success: false,
+			Reason:  err.Error(),
+		}, nil
+	}
+
+	return &pb.UnregisterReply{
+		Success: true,
+	}, nil
+}
+
 func (service *Service) ReleasePipelines(ctx context.Context, in *pb.ReleasePipelinesRequest) (*pb.ReleasePipelinesReply, error) {
+
+	controller := service.app.GetController()
+
+	var failures []uint64
+
+	for _, pipelineID := range in.Pipelines {
+
+		err := controller.ReleasePipeline(in.ClientID, pipelineID)
+		if err != nil {
+			failures = append(failures, pipelineID)
+		}
+	}
+
+	if len(failures) > 0 {
+		return &pb.ReleasePipelinesReply{
+			Success:  false,
+			Reason:   "Failed to release pipelines",
+			Failures: failures,
+		}, nil
+	}
 
 	return &pb.ReleasePipelinesReply{
 		Success: true,
