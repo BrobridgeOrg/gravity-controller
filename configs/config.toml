@@ -1,0 +1,9 @@
+[service]
+port = 40000
+
+[controller]
+pipelineCount = 256
+
+[eventbus]
+host = "0.0.0.0"
+port = 32803
