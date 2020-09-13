@@ -4,7 +4,7 @@ import (
 	"errors"
 	"time"
 
-	pb "github.com/BrobridgeOrg/gravity-api/service/controller"
+	synchronizer "github.com/BrobridgeOrg/gravity-api/service/synchronizer"
 	"github.com/golang/protobuf/proto"
 )
 
@@ -25,7 +25,7 @@ func (client *Client) AssignPipeline(pipelineID uint64) error {
 
 	connection := client.controller.eventBus.bus.GetConnection()
 
-	request := &pb.AssignPipelineRequest{
+	request := &synchronizer.AssignPipelineRequest{
 		ClientID:   client.id,
 		PipelineID: pipelineID,
 	}
@@ -41,7 +41,7 @@ func (client *Client) AssignPipeline(pipelineID uint64) error {
 		return err
 	}
 
-	var reply pb.AssignPipelineReply
+	var reply synchronizer.AssignPipelineReply
 	err = proto.Unmarshal(response.Data, &reply)
 	if err != nil {
 		return err
@@ -60,7 +60,7 @@ func (client *Client) RevokePipeline(pipelineID uint64) error {
 
 	connection := client.controller.eventBus.bus.GetConnection()
 
-	request := &pb.RevokePipelineRequest{
+	request := &synchronizer.RevokePipelineRequest{
 		ClientID:   client.id,
 		PipelineID: pipelineID,
 	}
@@ -76,7 +76,7 @@ func (client *Client) RevokePipeline(pipelineID uint64) error {
 		return err
 	}
 
-	var reply pb.RevokePipelineReply
+	var reply synchronizer.RevokePipelineReply
 	err = proto.Unmarshal(response.Data, &reply)
 	if err != nil {
 		return err
