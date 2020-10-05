@@ -98,3 +98,17 @@ func (service *Service) ReleasePipelines(ctx context.Context, in *pb.ReleasePipe
 		Success: true,
 	}, nil
 }
+
+func (service *Service) GetPipelines(ctx context.Context, in *pb.GetPipelinesRequest) (*pb.GetPipelinesReply, error) {
+
+	controller := service.app.GetController()
+
+	pipelines, err := controller.GetPipelines(in.ClientID)
+	if err != nil {
+		return &pb.GetPipelinesReply{}, nil
+	}
+
+	return &pb.GetPipelinesReply{
+		Pipelines: pipelines,
+	}, nil
+}

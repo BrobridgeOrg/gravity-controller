@@ -7,4 +7,5 @@ type Controller interface {
 	GetClientCount() uint64
 	GetPipelineCount() uint64
 	ReleasePipeline(string, uint64) error
+	GetPipelines(string) ([]uint64, error)
 }

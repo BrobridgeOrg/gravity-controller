@@ -6,7 +6,6 @@ import (
 	"os"
 	"strings"
 	"sync"
-	"time"
 
 	"github.com/BrobridgeOrg/gravity-controller/pkg/app"
 	log "github.com/sirupsen/logrus"
@@ -76,8 +75,6 @@ func (controller *Controller) watchTasks() {
 				// Failed to process this task so we handle it later
 				controller.pendingTasks <- task
 			}
-		default:
-			return
 		}
 	}
 }
@@ -94,14 +91,7 @@ func (controller *Controller) InitPipeline() error {
 		controller.pendingTasks <- NewTask(nil, pipeline)
 	}
 
-	go func() {
-		for {
-			controller.watchTasks()
-
-			// re-try in 1 second
-			time.Sleep(1 * time.Second)
-		}
-	}()
+	go controller.watchTasks()
 
 	return nil
 }
@@ -145,7 +135,16 @@ func (controller *Controller) DispatchPipeline(pipeline *Pipeline) bool {
 		return false
 	}
 
-	found.AssignPipeline(pipeline.id)
+	log.WithFields(log.Fields{
+		"pipeline": pipeline.id,
+		"client":   found.id,
+	}).Info("Assigning pipeline")
+
+	// Assign pipeline to client
+	err := found.AssignPipeline(pipeline.id)
+	if err != nil {
+		return false
+	}
 
 	return true
 }
@@ -163,6 +162,10 @@ func (controller *Controller) Register(clientID string) error {
 	// Create a new client
 	client := NewClient(controller, clientID)
 	controller.clients[clientID] = client
+
+	log.WithFields(log.Fields{
+		"clientID": clientID,
+	}).Info("Registered client")
 
 	return nil
 }
@@ -271,4 +274,14 @@ func (controller *Controller) RevokePipeline(clientID string, pipelineID uint64)
 	}
 
 	return client.RevokePipeline(pipeline.id)
+}
+
+func (controller *Controller) GetPipelines(clientID string) ([]uint64, error) {
+
+	client, ok := controller.clients[clientID]
+	if !ok {
+		return nil, errors.New("No such client: " + clientID)
+	}
+
+	return client.pipelines, nil
 }
