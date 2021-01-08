@@ -112,3 +112,37 @@ func (service *Service) GetPipelines(ctx context.Context, in *pb.GetPipelinesReq
 		Pipelines: pipelines,
 	}, nil
 }
+
+func (service *Service) RegisterAdapter(ctx context.Context, in *pb.RegisterAdapterRequest) (*pb.RegisterAdapterReply, error) {
+
+	controller := service.app.GetController()
+
+	err := controller.RegisterAdapter(in.ClientID)
+	if err != nil {
+		return &pb.RegisterAdapterReply{
+			Success: false,
+			Reason:  err.Error(),
+		}, nil
+	}
+
+	return &pb.RegisterAdapterReply{
+		Success: true,
+	}, nil
+}
+
+func (service *Service) UnregisterAdapter(ctx context.Context, in *pb.UnregisterAdapterRequest) (*pb.UnregisterAdapterReply, error) {
+
+	controller := service.app.GetController()
+
+	err := controller.UnregisterAdapter(in.ClientID)
+	if err != nil {
+		return &pb.UnregisterAdapterReply{
+			Success: false,
+			Reason:  err.Error(),
+		}, nil
+	}
+
+	return &pb.UnregisterAdapterReply{
+		Success: true,
+	}, nil
+}

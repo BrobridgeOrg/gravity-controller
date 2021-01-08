@@ -8,8 +8,7 @@ RUN CGO_ENABLED=0 go build -installsuffix cgo -o /gravity-controller ./cmd/gravi
 FROM alpine:3.12
 COPY --from=builder /gravity-controller /gravity-controller
 COPY ./configs .
-#RUN addgroup -S gravity && adduser -S gravity -G gravity
-#USER gravity
+
 USER 1001
 EXPOSE 40000
 CMD ["/gravity-controller"]

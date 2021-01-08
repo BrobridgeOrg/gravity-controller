@@ -3,7 +3,7 @@ module github.com/BrobridgeOrg/gravity-controller
 go 1.13
 
 require (
-	github.com/BrobridgeOrg/gravity-api v0.0.0-20201005083130-0c244aa1bdae
+	github.com/BrobridgeOrg/gravity-api v0.2.6
 	github.com/cfsghost/grpc-connection-pool v0.0.0-20200903182758-f64b83c701d7
 	github.com/golang/protobuf v1.4.2
 	github.com/nats-io/nats-server/v2 v2.1.7 // indirect

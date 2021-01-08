@@ -6,6 +6,7 @@ import (
 	"os"
 	"strings"
 	"sync"
+	"time"
 
 	"github.com/BrobridgeOrg/gravity-controller/pkg/app"
 	log "github.com/sirupsen/logrus"
@@ -13,11 +14,12 @@ import (
 )
 
 type Controller struct {
-	app       app.App
-	eventBus  *EventBus
-	clientID  string
-	clients   map[string]*Client
-	pipelines map[uint64]*Pipeline
+	app            app.App
+	eventBus       *EventBus
+	clientID       string
+	clients        map[string]*Client
+	adapterClients map[string]*AdapterClient
+	pipelines      map[uint64]*Pipeline
 
 	pendingTasks chan *Task
 	mutex        sync.RWMutex
@@ -25,9 +27,10 @@ type Controller struct {
 
 func NewController(a app.App) *Controller {
 	controller := &Controller{
-		app:       a,
-		clients:   make(map[string]*Client),
-		pipelines: make(map[uint64]*Pipeline),
+		app:            a,
+		clients:        make(map[string]*Client),
+		adapterClients: make(map[string]*AdapterClient),
+		pipelines:      make(map[uint64]*Pipeline),
 	}
 
 	controller.eventBus = NewEventBus(controller)
@@ -140,6 +143,8 @@ func (controller *Controller) DispatchPipeline(pipeline *Pipeline) bool {
 		"client":   found.id,
 	}).Info("Assigning pipeline")
 
+	timer := time.NewTimer(500 * time.Millisecond)
+	<-timer.C
 	// Assign pipeline to client
 	err := found.AssignPipeline(pipeline.id)
 	if err != nil {
@@ -284,4 +289,47 @@ func (controller *Controller) GetPipelines(clientID string) ([]uint64, error) {
 	}
 
 	return client.pipelines, nil
+}
+
+func (controller *Controller) RegisterAdapter(clientID string) error {
+
+	controller.mutex.Lock()
+	defer controller.mutex.Unlock()
+
+	_, ok := controller.adapterClients[clientID]
+	if ok {
+		return nil
+	}
+
+	// Create a new client
+	client := NewAdapterClient(controller, clientID)
+	controller.adapterClients[clientID] = client
+
+	log.WithFields(log.Fields{
+		"clientID": clientID,
+	}).Info("Registered Adapter client")
+
+	//TODO call synchronizer api to start send event
+
+	return nil
+}
+
+func (controller *Controller) UnregisterAdapter(clientID string) error {
+
+	controller.mutex.Lock()
+	defer controller.mutex.Unlock()
+
+	/*
+		client, ok := controller.adapterClients[clientID]
+		if ok {
+			return nil
+		}
+
+		//TODO call synchronizer api to stop send event
+	*/
+
+	// Take off client from registry
+	delete(controller.adapterClients, clientID)
+
+	return nil
 }

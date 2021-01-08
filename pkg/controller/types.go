@@ -8,4 +8,6 @@ type Controller interface {
 	GetPipelineCount() uint64
 	ReleasePipeline(string, uint64) error
 	GetPipelines(string) ([]uint64, error)
+	RegisterAdapter(string) error
+	UnregisterAdapter(string) error
 }
