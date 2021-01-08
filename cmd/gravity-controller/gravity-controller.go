@@ -26,7 +26,7 @@ func init() {
 		log.Warn("No configuration file was loaded")
 	}
 
-	runtime.GOMAXPROCS(8)
+	runtime.GOMAXPROCS(4)
 }
 
 func main() {
