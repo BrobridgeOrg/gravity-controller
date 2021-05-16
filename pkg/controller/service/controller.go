@@ -67,7 +67,9 @@ func (controller *Controller) Init() error {
 	err = controller.eventBus.Initialize()
 	if err != nil {
 		log.Error(err)
-		return nil
+		timer := time.NewTimer(1000 * time.Millisecond)
+		<-timer.C
+		return controller.Init()
 	}
 
 	// Initializing RPC handlers
