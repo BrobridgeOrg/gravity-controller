@@ -146,3 +146,55 @@ func (service *Service) UnregisterAdapter(ctx context.Context, in *pb.Unregister
 		Success: true,
 	}, nil
 }
+
+func (service *Service) Resync(ctx context.Context, in *pb.ResyncRequest) (*pb.ResyncReply, error) {
+
+	controller := service.app.GetController()
+
+	err := controller.Resync(in.DestinationName)
+	if err != nil {
+		return &pb.ResyncReply{
+			Success: false,
+			Reason:  err.Error(),
+		}, nil
+	}
+
+	return &pb.ResyncReply{
+		Success: true,
+	}, nil
+}
+
+func (service *Service) RegisterSubscriber(ctx context.Context, in *pb.RegisterSubscriberRequest) (*pb.RegisterSubscriberReply, error) {
+
+	controller := service.app.GetController()
+
+	subscriber, err := controller.RegisterSubscriber(in.SubscriberID)
+	if err != nil {
+		return &pb.RegisterSubscriberReply{
+			Success: false,
+			Reason:  err.Error(),
+		}, nil
+	}
+
+	return &pb.RegisterSubscriberReply{
+		Success: true,
+		Channel: subscriber.GetChannel(),
+	}, nil
+}
+
+func (service *Service) UnregisterSubscriber(ctx context.Context, in *pb.UnregisterSubscriberRequest) (*pb.UnregisterSubscriberReply, error) {
+
+	controller := service.app.GetController()
+
+	err := controller.UnregisterSubscriber(in.SubscriberID)
+	if err != nil {
+		return &pb.UnregisterSubscriberReply{
+			Success: false,
+			Reason:  err.Error(),
+		}, nil
+	}
+
+	return &pb.UnregisterSubscriberReply{
+		Success: true,
+	}, nil
+}

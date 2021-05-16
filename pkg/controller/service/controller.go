@@ -14,23 +14,28 @@ import (
 )
 
 type Controller struct {
-	app            app.App
-	eventBus       *EventBus
-	clientID       string
-	clients        map[string]*Client
-	adapterClients map[string]*AdapterClient
-	pipelines      map[uint64]*Pipeline
+	app               app.App
+	eventBus          *EventBus
+	clientID          string
+	clients           map[string]*Client
+	adapterClients    map[string]*AdapterClient
+	subscriberClients map[string]*SubscriberClient
+	pipelines         map[uint64]*Pipeline
 
 	pendingTasks chan *Task
 	mutex        sync.RWMutex
+
+	channelCounter uint64
 }
 
 func NewController(a app.App) *Controller {
 	controller := &Controller{
-		app:            a,
-		clients:        make(map[string]*Client),
-		adapterClients: make(map[string]*AdapterClient),
-		pipelines:      make(map[uint64]*Pipeline),
+		app:               a,
+		clients:           make(map[string]*Client),
+		adapterClients:    make(map[string]*AdapterClient),
+		subscriberClients: make(map[string]*SubscriberClient),
+		pipelines:         make(map[uint64]*Pipeline),
+		channelCounter:    0,
 	}
 
 	controller.eventBus = NewEventBus(controller)
@@ -60,6 +65,13 @@ func (controller *Controller) Init() error {
 
 	// Initializing eventbus
 	err = controller.eventBus.Initialize()
+	if err != nil {
+		log.Error(err)
+		return nil
+	}
+
+	// Initializing RPC handlers
+	err = controller.InitRPCHandlers()
 	if err != nil {
 		log.Error(err)
 		return nil
@@ -143,7 +155,7 @@ func (controller *Controller) DispatchPipeline(pipeline *Pipeline) bool {
 		"client":   found.id,
 	}).Info("Assigning pipeline")
 
-	timer := time.NewTimer(500 * time.Millisecond)
+	timer := time.NewTimer(10 * time.Millisecond)
 	<-timer.C
 	// Assign pipeline to client
 	err := found.AssignPipeline(pipeline.id)
@@ -330,6 +342,13 @@ func (controller *Controller) UnregisterAdapter(clientID string) error {
 
 	// Take off client from registry
 	delete(controller.adapterClients, clientID)
+
+	return nil
+}
+
+func (controller *Controller) Resync(destinationName string) error {
+
+	//TODO: Resync for specific destination
 
 	return nil
 }
