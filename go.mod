@@ -4,7 +4,7 @@ go 1.13
 
 require (
 	github.com/BrobridgeOrg/EventStore v0.0.5 // indirect
-	github.com/BrobridgeOrg/gravity-api v0.2.6
+	github.com/BrobridgeOrg/gravity-api v0.2.12
 	github.com/cfsghost/grpc-connection-pool v0.0.0-20200903182758-f64b83c701d7
 	github.com/golang/protobuf v1.4.2
 	github.com/konsorten/go-windows-terminal-sequences v1.0.3 // indirect
@@ -22,4 +22,4 @@ require (
 	gopkg.in/yaml.v2 v2.2.8 // indirect
 )
 
-replace github.com/BrobridgeOrg/gravity-api => ../gravity-api
+//replace github.com/BrobridgeOrg/gravity-api => ../gravity-api
