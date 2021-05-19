@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	subscriber_manager_pb "github.com/BrobridgeOrg/gravity-api/service/subscriber_manager"
 	synchronizer_pb "github.com/BrobridgeOrg/gravity-api/service/synchronizer"
 	def "github.com/BrobridgeOrg/gravity-controller/pkg/controller"
 	"github.com/golang/protobuf/proto"
@@ -43,7 +44,7 @@ func (controller *Controller) registerSubscriber(eventstoreID string, subscriber
 	return nil
 }
 
-func (controller *Controller) RegisterSubscriber(subscriberID string) (def.SubscriberClient, error) {
+func (controller *Controller) RegisterSubscriber(subscriberType subscriber_manager_pb.SubscriberType, component string, subscriberID string, name string) (def.SubscriberClient, error) {
 
 	controller.mutex.Lock()
 	defer controller.mutex.Unlock()
@@ -54,13 +55,14 @@ func (controller *Controller) RegisterSubscriber(subscriberID string) (def.Subsc
 	}
 
 	// Create a new subscriber
-	controller.channelCounter++
-	channel := controller.channelCounter
-	subscriber := NewSubscriberClient(controller, subscriberID, channel)
+	subscriber := NewSubscriberClient(controller, subscriberType, component, subscriberID, name)
 	controller.subscriberClients[subscriberID] = subscriber
 
 	log.WithFields(log.Fields{
 		"subscriberID": subscriberID,
+		"name":         name,
+		"type":         subscriber_manager_pb.SubscriberType_name[int32(subscriberType)],
+		"component":    component,
 	}).Info("Registered subscriber")
 
 	// call synchronizer api to register subscriber
@@ -102,4 +104,17 @@ func (controller *Controller) SubscribeToCollections(subscriberID string, collec
 	}
 
 	return subscriber.SubscribeToCollections(collections)
+}
+
+func (controller *Controller) GetSubscribers() ([]*SubscriberClient, error) {
+
+	controller.mutex.RLock()
+	defer controller.mutex.RUnlock()
+
+	subscribers := make([]*SubscriberClient, 0, len(controller.subscriberClients))
+	for _, subscriber := range controller.subscriberClients {
+		subscribers = append(subscribers, subscriber)
+	}
+
+	return subscribers, nil
 }

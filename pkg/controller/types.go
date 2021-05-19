@@ -1,7 +1,10 @@
 package controller
 
+import (
+	subscriber_manager_pb "github.com/BrobridgeOrg/gravity-api/service/subscriber_manager"
+)
+
 type SubscriberClient interface {
-	GetChannel() uint64
 }
 
 type Controller interface {
@@ -20,7 +23,7 @@ type Controller interface {
 	UnregisterAdapter(string) error
 
 	// Subscriber
-	RegisterSubscriber(string) (SubscriberClient, error)
+	RegisterSubscriber(subscriber_manager_pb.SubscriberType, string, string, string) (SubscriberClient, error)
 	UnregisterSubscriber(string) error
 
 	Resync(string) error

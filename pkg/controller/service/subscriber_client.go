@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	subscriber_manager_pb "github.com/BrobridgeOrg/gravity-api/service/subscriber_manager"
 	synchronizer_pb "github.com/BrobridgeOrg/gravity-api/service/synchronizer"
 	"github.com/golang/protobuf/proto"
 	log "github.com/sirupsen/logrus"
@@ -18,17 +19,21 @@ import (
 //"github.com/golang/protobuf/proto"
 
 type SubscriberClient struct {
-	controller  *Controller
-	id          string
-	channel     uint64
-	collections sync.Map
+	controller     *Controller
+	id             string
+	name           string
+	component      string
+	subscriberType subscriber_manager_pb.SubscriberType
+	collections    sync.Map
 }
 
-func NewSubscriberClient(controller *Controller, id string, channel uint64) *SubscriberClient {
+func NewSubscriberClient(controller *Controller, subscriberType subscriber_manager_pb.SubscriberType, component string, id string, name string) *SubscriberClient {
 	return &SubscriberClient{
-		controller: controller,
-		id:         id,
-		channel:    channel,
+		controller:     controller,
+		id:             id,
+		name:           name,
+		component:      component,
+		subscriberType: subscriberType,
 	}
 }
 func (sc *SubscriberClient) subscribeToCollections(eventstoreID string, collections []string) error {
@@ -59,10 +64,6 @@ func (sc *SubscriberClient) subscribeToCollections(eventstoreID string, collecti
 	}
 
 	return nil
-}
-
-func (sc *SubscriberClient) GetChannel() uint64 {
-	return sc.channel
 }
 
 func (sc *SubscriberClient) SubscribeToCollections(collections []string) ([]string, error) {
