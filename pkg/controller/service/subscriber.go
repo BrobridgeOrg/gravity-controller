@@ -24,7 +24,7 @@ func (controller *Controller) registerSubscriber(eventstoreID string, subscriber
 
 	msg, _ := proto.Marshal(&request)
 
-	conn := controller.eventBus.bus.GetConnection()
+	conn := controller.gravityClient.GetConnection()
 	resp, err := conn.Request(channel, msg, time.Second*10)
 	if err != nil {
 		return err
@@ -66,7 +66,7 @@ func (controller *Controller) RegisterSubscriber(subscriberType subscriber_manag
 	}).Info("Registered subscriber")
 
 	// call synchronizer api to register subscriber
-	for synchronizerID, _ := range controller.clients {
+	for synchronizerID, _ := range controller.synchronizerManager.GetSynchronizers() {
 		err := controller.registerSubscriber(synchronizerID, subscriberID)
 		if err != nil {
 			return subscriber, errors.New("Failed to register subscriber on eventstore: " + synchronizerID)

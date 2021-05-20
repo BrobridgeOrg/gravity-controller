@@ -12,12 +12,6 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-//"errors"
-//"time"
-
-//synchronizer "github.com/BrobridgeOrg/gravity-api/service/synchronizer"
-//"github.com/golang/protobuf/proto"
-
 type SubscriberClient struct {
 	controller     *Controller
 	id             string
@@ -47,7 +41,7 @@ func (sc *SubscriberClient) subscribeToCollections(eventstoreID string, collecti
 
 	msg, _ := proto.Marshal(&request)
 
-	conn := sc.controller.eventBus.bus.GetConnection()
+	conn := sc.controller.gravityClient.GetConnection()
 	resp, err := conn.Request(channel, msg, time.Second*10)
 	if err != nil {
 		return err
@@ -82,7 +76,7 @@ func (sc *SubscriberClient) SubscribeToCollections(collections []string) ([]stri
 	}
 
 	// Call all synchronizers to subscribe
-	for synchronizerID, _ := range sc.controller.clients {
+	for synchronizerID, _ := range sc.controller.synchronizerManager.GetSynchronizers() {
 		err := sc.subscribeToCollections(synchronizerID, results)
 		if err != nil {
 			log.WithFields(log.Fields{

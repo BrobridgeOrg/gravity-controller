@@ -40,7 +40,7 @@ func (controller *Controller) InitRPCHandlers() error {
 
 func (controller *Controller) initRPC_SubscriberRegister() error {
 
-	connection := controller.eventBus.bus.GetConnection()
+	connection := controller.gravityClient.GetConnection()
 
 	log.WithFields(log.Fields{
 		"name": "gravity.core.registerSubscriber",
@@ -87,7 +87,7 @@ func (controller *Controller) initRPC_SubscriberRegister() error {
 
 func (controller *Controller) initRPC_SubscriberUnregister() error {
 
-	connection := controller.eventBus.bus.GetConnection()
+	connection := controller.gravityClient.GetConnection()
 
 	log.WithFields(log.Fields{
 		"name": "gravity.core.unregisterSubscriber",
@@ -134,7 +134,7 @@ func (controller *Controller) initRPC_SubscriberUnregister() error {
 
 func (controller *Controller) initRPC_GetPipelineCount() error {
 
-	connection := controller.eventBus.bus.GetConnection()
+	connection := controller.gravityClient.GetConnection()
 
 	log.WithFields(log.Fields{
 		"name": "gravity.core.getPipelineCount",
@@ -176,7 +176,7 @@ func (controller *Controller) initRPC_GetPipelineCount() error {
 
 func (controller *Controller) initRPC_SubscribeToCollections() error {
 
-	connection := controller.eventBus.bus.GetConnection()
+	connection := controller.gravityClient.GetConnection()
 
 	log.WithFields(log.Fields{
 		"name": "gravity.core.registerSubscriber",
@@ -237,7 +237,7 @@ func (controller *Controller) initRPC_SubscribeToCollections() error {
 
 func (controller *Controller) initRPC_GetSubscribers() error {
 
-	connection := controller.eventBus.bus.GetConnection()
+	connection := controller.gravityClient.GetConnection()
 
 	log.WithFields(log.Fields{
 		"name": "gravity.subscriber_manager.getSubscribers",

@@ -1,13 +1,13 @@
 package controller
 
 type Task struct {
-	Client   *Client
-	Pipeline *Pipeline
+	Synchronizer *Synchronizer
+	Pipeline     *Pipeline
 }
 
-func NewTask(client *Client, pipeline *Pipeline) *Task {
+func NewTask(syncronizer *Synchronizer, pipeline *Pipeline) *Task {
 	return &Task{
-		Client:   client,
-		Pipeline: pipeline,
+		Synchronizer: syncronizer,
+		Pipeline:     pipeline,
 	}
 }
