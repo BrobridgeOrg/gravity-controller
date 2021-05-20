@@ -17,21 +17,21 @@ type Controller struct {
 	app                 app.App
 	gravityClient       *core.Client
 	clientID            string
+	adapterManager      *AdapterManager
 	synchronizerManager *SynchronizerManager
 	pipelineManager     *PipelineManager
 	subscriberManager   *SubscriberManager
-	adapterClients      map[string]*AdapterClient
 
 	mutex sync.RWMutex
 }
 
 func NewController(a app.App) *Controller {
 	controller := &Controller{
-		app:            a,
-		gravityClient:  core.NewClient(),
-		adapterClients: make(map[string]*AdapterClient),
+		app:           a,
+		gravityClient: core.NewClient(),
 	}
 
+	controller.adapterManager = NewAdapterManager(controller)
 	controller.synchronizerManager = NewSynchronizerManager(controller)
 	controller.pipelineManager = NewPipelineManager(controller)
 	controller.subscriberManager = NewSubscriberManager(controller)
@@ -63,6 +63,13 @@ func (controller *Controller) Init() error {
 
 	// Initializing pipeline manager
 	err = controller.pipelineManager.Initialize()
+	if err != nil {
+		log.Error(err)
+		return nil
+	}
+
+	// Initializing adapter manager
+	err = controller.adapterManager.Initialize()
 	if err != nil {
 		log.Error(err)
 		return nil
@@ -127,34 +134,10 @@ func (controller *Controller) GetPipelines(synchronizerID string) ([]uint64, err
 	return synchronizer.pipelines, nil
 }
 
-func (controller *Controller) RegisterAdapter(synchronizerID string) error {
-
-	controller.mutex.Lock()
-	defer controller.mutex.Unlock()
-
-	_, ok := controller.adapterClients[synchronizerID]
-	if ok {
-		return nil
-	}
-
-	// Create a new synchronizer
-	synchronizer := NewAdapterClient(controller, synchronizerID)
-	controller.adapterClients[synchronizerID] = synchronizer
-
-	log.WithFields(log.Fields{
-		"synchronizerID": synchronizerID,
-	}).Info("Registered Adapter synchronizer")
-
-	return nil
+func (controller *Controller) RegisterAdapter(adapterID string) error {
+	return controller.adapterManager.Register(adapterID)
 }
 
-func (controller *Controller) UnregisterAdapter(synchronizerID string) error {
-
-	controller.mutex.Lock()
-	defer controller.mutex.Unlock()
-
-	// Take off synchronizer from registry
-	delete(controller.adapterClients, synchronizerID)
-
-	return nil
+func (controller *Controller) UnregisterAdapter(adapterID string) error {
+	return controller.adapterManager.Unregister(adapterID)
 }
