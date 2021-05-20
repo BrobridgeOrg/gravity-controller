@@ -3,51 +3,98 @@ package controller
 import (
 	"errors"
 	"fmt"
+	"sync"
 	"time"
 
+	subscriber_manager_pb "github.com/BrobridgeOrg/gravity-api/service/subscriber_manager"
 	synchronizer_pb "github.com/BrobridgeOrg/gravity-api/service/synchronizer"
 	"github.com/golang/protobuf/proto"
-
 	log "github.com/sirupsen/logrus"
 )
 
-func (controller *Controller) registerSubscriber(eventstoreID string, subscriberID string) error {
+type Subscriber struct {
+	controller     *Controller
+	id             string
+	name           string
+	component      string
+	subscriberType subscriber_manager_pb.SubscriberType
+	collections    sync.Map
+}
 
-	channel := fmt.Sprintf("gravity.eventstore.%s.registerSubscriber", eventstoreID)
+func NewSubscriber(controller *Controller, subscriberType subscriber_manager_pb.SubscriberType, component string, id string, name string) *Subscriber {
+	return &Subscriber{
+		controller:     controller,
+		id:             id,
+		name:           name,
+		component:      component,
+		subscriberType: subscriberType,
+	}
+}
+func (sc *Subscriber) subscribeToCollections(eventstoreID string, collections []string) error {
 
-	request := synchronizer_pb.RegisterSubscriberRequest{
-		SubscriberID: subscriberID,
-		Name:         subscriberID,
+	channel := fmt.Sprintf("gravity.eventstore.%s.subscribeToCollections", eventstoreID)
+
+	request := synchronizer_pb.SubscribeToCollectionsRequest{
+		SubscriberID: sc.id,
+		Collections:  collections,
 	}
 
 	msg, _ := proto.Marshal(&request)
 
-	conn := controller.gravityClient.GetConnection()
+	conn := sc.controller.gravityClient.GetConnection()
 	resp, err := conn.Request(channel, msg, time.Second*10)
 	if err != nil {
 		return err
 	}
 
-	var reply synchronizer_pb.RegisterSubscriberReply
+	var reply synchronizer_pb.SubscribeToCollectionsReply
 	err = proto.Unmarshal(resp.Data, &reply)
 	if err != nil {
 		return err
 	}
 
 	if !reply.Success {
-		log.Error(reply.Reason)
-		return err
+		return errors.New(reply.Reason)
 	}
 
 	return nil
 }
 
-func (controller *Controller) SubscribeToCollections(subscriberID string, collections []string) ([]string, error) {
+func (sc *Subscriber) SubscribeToCollections(collections []string) ([]string, error) {
 
-	subscriber := controller.subscriberManager.GetSubscriber(subscriberID)
-	if subscriber == nil {
-		return nil, errors.New("No such subscriber")
+	results := make([]string, 0, len(collections))
+
+	// Update collections table
+	for _, col := range collections {
+		if _, ok := sc.collections.Load(col); ok {
+			results = append(results, col)
+			continue
+		}
+
+		sc.collections.Store(col, true)
+		results = append(results, col)
 	}
 
-	return subscriber.SubscribeToCollections(collections)
+	// Call all synchronizers to subscribe
+	for synchronizerID, _ := range sc.controller.synchronizerManager.GetSynchronizers() {
+		err := sc.subscribeToCollections(synchronizerID, results)
+		if err != nil {
+			log.WithFields(log.Fields{
+				"synchronizer": synchronizerID,
+			}).Error(err)
+		}
+	}
+
+	return results, nil
+}
+
+func (sc *Subscriber) UnsubscribeFromCollections(collections []string) ([]string, error) {
+
+	for _, col := range collections {
+		sc.collections.Delete(col)
+	}
+
+	// TODO: call synchronizer
+
+	return collections, nil
 }

@@ -8,21 +8,20 @@ import (
 
 	subscriber_manager_pb "github.com/BrobridgeOrg/gravity-api/service/subscriber_manager"
 	synchronizer_pb "github.com/BrobridgeOrg/gravity-api/service/synchronizer"
-	def "github.com/BrobridgeOrg/gravity-controller/pkg/controller"
 	"github.com/golang/protobuf/proto"
 	log "github.com/sirupsen/logrus"
 )
 
 type SubscriberManager struct {
 	controller  *Controller
-	subscribers map[string]*SubscriberClient
+	subscribers map[string]*Subscriber
 	mutex       sync.RWMutex
 }
 
 func NewSubscriberManager(controller *Controller) *SubscriberManager {
 	return &SubscriberManager{
 		controller:  controller,
-		subscribers: make(map[string]*SubscriberClient),
+		subscribers: make(map[string]*Subscriber),
 	}
 }
 
@@ -67,18 +66,18 @@ func (sm *SubscriberManager) register(eventstoreID string, subscriberID string) 
 	return nil
 }
 
-func (sm *SubscriberManager) Register(subscriberType subscriber_manager_pb.SubscriberType, component string, subscriberID string, name string) (def.SubscriberClient, error) {
+func (sm *SubscriberManager) Register(subscriberType subscriber_manager_pb.SubscriberType, component string, subscriberID string, name string) error {
 
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
 
 	_, ok := sm.subscribers[subscriberID]
 	if ok {
-		return nil, errors.New("Subscriber ID exists already")
+		return errors.New("Subscriber ID exists already")
 	}
 
 	// Create a new subscriber
-	subscriber := NewSubscriberClient(sm.controller, subscriberType, component, subscriberID, name)
+	subscriber := NewSubscriber(sm.controller, subscriberType, component, subscriberID, name)
 	sm.subscribers[subscriberID] = subscriber
 
 	log.WithFields(log.Fields{
@@ -92,11 +91,11 @@ func (sm *SubscriberManager) Register(subscriberType subscriber_manager_pb.Subsc
 	for synchronizerID, _ := range sm.controller.synchronizerManager.GetSynchronizers() {
 		err := sm.register(synchronizerID, subscriberID)
 		if err != nil {
-			return subscriber, errors.New("Failed to register subscriber on eventstore: " + synchronizerID)
+			return errors.New("Failed to register subscriber on eventstore: " + synchronizerID)
 		}
 	}
 
-	return subscriber, nil
+	return nil
 }
 
 func (sm *SubscriberManager) Unregister(subscriberID string) error {
@@ -119,7 +118,7 @@ func (sm *SubscriberManager) Unregister(subscriberID string) error {
 	return nil
 }
 
-func (sm *SubscriberManager) GetSubscriber(subscriberID string) *SubscriberClient {
+func (sm *SubscriberManager) GetSubscriber(subscriberID string) *Subscriber {
 
 	subscriber, ok := sm.subscribers[subscriberID]
 	if !ok {
@@ -129,12 +128,12 @@ func (sm *SubscriberManager) GetSubscriber(subscriberID string) *SubscriberClien
 	return subscriber
 }
 
-func (sm *SubscriberManager) GetSubscribers() ([]*SubscriberClient, error) {
+func (sm *SubscriberManager) GetSubscribers() ([]*Subscriber, error) {
 
 	sm.mutex.RLock()
 	defer sm.mutex.RUnlock()
 
-	subscribers := make([]*SubscriberClient, 0, len(sm.subscribers))
+	subscribers := make([]*Subscriber, 0, len(sm.subscribers))
 	for _, subscriber := range sm.subscribers {
 		subscribers = append(subscribers, subscriber)
 	}

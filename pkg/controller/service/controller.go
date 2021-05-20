@@ -21,7 +21,6 @@ type Controller struct {
 	pipelineManager     *PipelineManager
 	subscriberManager   *SubscriberManager
 	adapterClients      map[string]*AdapterClient
-	//	subscriberClients   map[string]*SubscriberClient
 
 	mutex sync.RWMutex
 }
@@ -31,7 +30,6 @@ func NewController(a app.App) *Controller {
 		app:            a,
 		gravityClient:  core.NewClient(),
 		adapterClients: make(map[string]*AdapterClient),
-		//		subscriberClients: make(map[string]*SubscriberClient),
 	}
 
 	controller.synchronizerManager = NewSynchronizerManager(controller)
@@ -79,13 +77,6 @@ func (controller *Controller) Init() error {
 
 	// Initializing subscriber manager
 	err = controller.subscriberManager.Initialize()
-	if err != nil {
-		log.Error(err)
-		return nil
-	}
-
-	// Initializing RPC handlers
-	err = controller.InitRPCHandlers()
 	if err != nil {
 		log.Error(err)
 		return nil
