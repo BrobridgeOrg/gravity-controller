@@ -19,22 +19,24 @@ type Controller struct {
 	clientID            string
 	synchronizerManager *SynchronizerManager
 	pipelineManager     *PipelineManager
+	subscriberManager   *SubscriberManager
 	adapterClients      map[string]*AdapterClient
-	subscriberClients   map[string]*SubscriberClient
+	//	subscriberClients   map[string]*SubscriberClient
 
 	mutex sync.RWMutex
 }
 
 func NewController(a app.App) *Controller {
 	controller := &Controller{
-		app:               a,
-		gravityClient:     core.NewClient(),
-		adapterClients:    make(map[string]*AdapterClient),
-		subscriberClients: make(map[string]*SubscriberClient),
+		app:            a,
+		gravityClient:  core.NewClient(),
+		adapterClients: make(map[string]*AdapterClient),
+		//		subscriberClients: make(map[string]*SubscriberClient),
 	}
 
 	controller.synchronizerManager = NewSynchronizerManager(controller)
 	controller.pipelineManager = NewPipelineManager(controller)
+	controller.subscriberManager = NewSubscriberManager(controller)
 
 	return controller
 }
@@ -70,6 +72,13 @@ func (controller *Controller) Init() error {
 
 	// Initializing synchronizer manager
 	err = controller.synchronizerManager.Initialize()
+	if err != nil {
+		log.Error(err)
+		return nil
+	}
+
+	// Initializing subscriber manager
+	err = controller.subscriberManager.Initialize()
 	if err != nil {
 		log.Error(err)
 		return nil
@@ -155,13 +164,6 @@ func (controller *Controller) UnregisterAdapter(synchronizerID string) error {
 
 	// Take off synchronizer from registry
 	delete(controller.adapterClients, synchronizerID)
-
-	return nil
-}
-
-func (controller *Controller) Resync(destinationName string) error {
-
-	//TODO: Resync for specific destination
 
 	return nil
 }
