@@ -19,6 +19,7 @@ func NewSynchronizer(sm *SynchronizerManager, id string) *Synchronizer {
 	return &Synchronizer{
 		synchronizerManager: sm,
 		id:                  id,
+		pipelines:           make([]uint64, 0),
 	}
 }
 
@@ -107,12 +108,12 @@ func (synchronizer *Synchronizer) ReleasePipeline(pipelineID uint64) bool {
 	return false
 }
 
-func (synchronizer *Synchronizer) RegisterSubscriber(transmitterID string) error {
+func (synchronizer *Synchronizer) RegisterSubscriber(subscriberID string) error {
 
 	connection := synchronizer.getConnection()
 
 	request := &synchronizer_pb.RegisterSubscriberRequest{
-		SubscriberID: transmitterID,
+		SubscriberID: subscriberID,
 	}
 
 	data, err := proto.Marshal(request)
@@ -139,12 +140,12 @@ func (synchronizer *Synchronizer) RegisterSubscriber(transmitterID string) error
 	return nil
 }
 
-func (synchronizer *Synchronizer) UnregisterSubscriber(transmitterID string) error {
+func (synchronizer *Synchronizer) UnregisterSubscriber(subscriberID string) error {
 
 	connection := synchronizer.getConnection()
 
 	request := &synchronizer_pb.UnregisterSubscriberRequest{
-		SubscriberID: transmitterID,
+		SubscriberID: subscriberID,
 	}
 
 	data, err := proto.Marshal(request)

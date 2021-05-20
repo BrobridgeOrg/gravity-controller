@@ -20,11 +20,6 @@ func (controller *Controller) InitRPCHandlers() error {
 		return err
 	}
 
-	err = controller.initRPC_GetPipelineCount()
-	if err != nil {
-		return err
-	}
-
 	err = controller.initRPC_SubscribeToCollections()
 	if err != nil {
 		return err
@@ -124,48 +119,6 @@ func (controller *Controller) initRPC_SubscriberUnregister() error {
 			reply.Reason = err.Error()
 			return
 		}
-	})
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (controller *Controller) initRPC_GetPipelineCount() error {
-
-	connection := controller.gravityClient.GetConnection()
-
-	log.WithFields(log.Fields{
-		"name": "gravity.core.getPipelineCount",
-	}).Info("Subscribing to channel")
-
-	_, err := connection.Subscribe("gravity.core.getPipelineCount", func(m *nats.Msg) {
-
-		log.Info("gravity.core.getPipelineCount")
-
-		// Reply
-		reply := pb.GetPipelineCountReply{
-			Success: true,
-		}
-		defer func() {
-			data, _ := proto.Marshal(&reply)
-			m.Respond(data)
-		}()
-
-		// Parsing request data
-		var req pb.GetPipelineCountRequest
-		err := proto.Unmarshal(m.Data, &req)
-		if err != nil {
-			log.Error(err)
-
-			reply.Success = false
-			reply.Reason = "UnknownParameter"
-			return
-		}
-
-		// Start transmitter on all synchronizer nodes
-		reply.Count = controller.GetPipelineCount()
 	})
 	if err != nil {
 		return err

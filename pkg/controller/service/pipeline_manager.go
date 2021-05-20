@@ -36,6 +36,12 @@ func (pm *PipelineManager) Initialize() error {
 
 	go pm.watchTasks()
 
+	// Initializing RPC
+	err := pm.initialize_rpc()
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
