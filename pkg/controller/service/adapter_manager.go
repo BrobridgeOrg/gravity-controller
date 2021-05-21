@@ -44,7 +44,9 @@ func (am *AdapterManager) Register(component string, adapterID string, name stri
 	am.adapters[adapterID] = adapter
 
 	log.WithFields(log.Fields{
-		"id": adapter,
+		"component": component,
+		"id":        adapterID,
+		"name":      name,
 	}).Info("Registered Adapter")
 
 	return nil
