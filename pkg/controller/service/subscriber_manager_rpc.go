@@ -1,7 +1,6 @@
 package controller
 
 import (
-	pb "github.com/BrobridgeOrg/gravity-api/service/controller"
 	subscriber_manager_pb "github.com/BrobridgeOrg/gravity-api/service/subscriber_manager"
 	"github.com/golang/protobuf/proto"
 	"github.com/nats-io/nats.go"
@@ -200,7 +199,7 @@ func (sm *SubscriberManager) initialize_rpc_subscribe_to_collections() error {
 	_, err := connection.Subscribe("gravity.subscriber_manager.subscribeToCollections", func(m *nats.Msg) {
 
 		// Reply
-		reply := pb.SubscribeToCollectionsReply{
+		reply := subscriber_manager_pb.SubscribeToCollectionsReply{
 			Success: true,
 		}
 		defer func() {
@@ -209,7 +208,7 @@ func (sm *SubscriberManager) initialize_rpc_subscribe_to_collections() error {
 		}()
 
 		// Parsing request data
-		var req pb.SubscribeToCollectionsRequest
+		var req subscriber_manager_pb.SubscribeToCollectionsRequest
 		err := proto.Unmarshal(m.Data, &req)
 		if err != nil {
 			log.Error(err)

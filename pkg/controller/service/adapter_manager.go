@@ -20,10 +20,16 @@ func NewAdapterManager(controller *Controller) *AdapterManager {
 }
 
 func (am *AdapterManager) Initialize() error {
+
+	err := am.initialize_rpc()
+	if err != nil {
+		return err
+	}
+
 	return nil
 }
 
-func (am *AdapterManager) Register(adapterID string) error {
+func (am *AdapterManager) Register(component string, adapterID string, name string) error {
 
 	am.mutex.Lock()
 	defer am.mutex.Unlock()
@@ -34,7 +40,7 @@ func (am *AdapterManager) Register(adapterID string) error {
 	}
 
 	// Create a new synchronizer
-	adapter := NewAdapter(am.controller, adapterID)
+	adapter := NewAdapter(am.controller, component, adapterID, name)
 	am.adapters[adapterID] = adapter
 
 	log.WithFields(log.Fields{

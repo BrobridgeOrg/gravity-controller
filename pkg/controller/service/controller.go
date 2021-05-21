@@ -133,11 +133,3 @@ func (controller *Controller) GetPipelines(synchronizerID string) ([]uint64, err
 
 	return synchronizer.pipelines, nil
 }
-
-func (controller *Controller) RegisterAdapter(adapterID string) error {
-	return controller.adapterManager.Register(adapterID)
-}
-
-func (controller *Controller) UnregisterAdapter(adapterID string) error {
-	return controller.adapterManager.Unregister(adapterID)
-}
