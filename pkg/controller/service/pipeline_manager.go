@@ -30,11 +30,14 @@ func (pm *PipelineManager) Initialize() error {
 	pm.pendingTasks = make(chan *Task, pipelineCount)
 	for i := uint64(0); i < pipelineCount; i++ {
 
-		if _, ok := pm.pipelines[i]; ok {
-			continue
+		pipeline, ok := pm.pipelines[i]
+		if ok {
+			if pipeline.synchronizerID != "" {
+				continue
+			}
 		}
 
-		pipeline := pm.addPipeline(i, "")
+		pipeline = pm.addPipeline(i, "")
 		pm.pendingTasks <- NewTask(nil, pipeline)
 	}
 
