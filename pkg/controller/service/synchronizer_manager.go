@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"encoding/json"
 	"sync"
 
 	log "github.com/sirupsen/logrus"
@@ -21,7 +22,55 @@ func NewSynchronizerManager(controller *Controller) *SynchronizerManager {
 
 func (sm *SynchronizerManager) Initialize() error {
 
-	err := sm.initialize_rpc()
+	// Restore states from store
+	store, err := sm.controller.store.GetEngine().GetStore("gravity_synchronizer_manager")
+	if err != nil {
+		return nil
+	}
+
+	err = store.RegisterColumns([]string{"synchronizers"})
+	if err != nil {
+		return nil
+	}
+
+	log.Info("Trying to restoring synchronizers...")
+
+	store.List("synchronizers", []byte(""), func(key []byte, value []byte) bool {
+
+		var data map[string]interface{}
+		json.Unmarshal(value, &data)
+
+		synchronizer, err := sm.addSynchronizer(
+			data["id"].(string),
+		)
+		if err != nil {
+			log.Error(err)
+			return false
+		}
+
+		log.WithFields(log.Fields{
+			"id": synchronizer.id,
+		}).Info("Restored synchronizer")
+
+		// Update pipelines
+		if data["pipelines"] != nil {
+			ps := data["pipelines"].([]interface{})
+
+			for _, p := range ps {
+				if p == nil {
+					continue
+				}
+
+				pipelineID := uint64(p.(float64))
+				synchronizer.pipelines = append(synchronizer.pipelines, pipelineID)
+				sm.controller.pipelineManager.addPipeline(pipelineID, synchronizer.id)
+			}
+		}
+
+		return true
+	})
+
+	err = sm.initialize_rpc()
 	if err != nil {
 		return err
 	}
@@ -29,25 +78,35 @@ func (sm *SynchronizerManager) Initialize() error {
 	return nil
 }
 
-func (sm *SynchronizerManager) Register(synchronizerID string) error {
+func (sm *SynchronizerManager) addSynchronizer(synchronizerID string) (*Synchronizer, error) {
 
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
 
-	_, ok := sm.synchronizers[synchronizerID]
+	synchronizer, ok := sm.synchronizers[synchronizerID]
 	if ok {
-		return nil
+		return synchronizer, nil
 	}
 
 	// Create a new client
-	synchronizer := NewSynchronizer(sm, synchronizerID)
+	synchronizer = NewSynchronizer(sm, synchronizerID)
 	sm.synchronizers[synchronizerID] = synchronizer
+
+	return synchronizer, nil
+}
+
+func (sm *SynchronizerManager) Register(synchronizerID string) error {
+
+	synchronizer, err := sm.addSynchronizer(synchronizerID)
+	if err != nil {
+		return err
+	}
 
 	log.WithFields(log.Fields{
 		"id": synchronizerID,
 	}).Info("Registered synchronizer")
 
-	return nil
+	return synchronizer.save()
 }
 
 func (sm *SynchronizerManager) Unregister(synchronizerID string) error {

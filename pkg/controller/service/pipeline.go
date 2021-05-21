@@ -1,8 +1,8 @@
 package controller
 
 type Pipeline struct {
-	id       uint64
-	clientID string
+	id             uint64
+	synchronizerID string
 }
 
 func NewPipeline(id uint64) *Pipeline {
@@ -11,10 +11,10 @@ func NewPipeline(id uint64) *Pipeline {
 	}
 }
 
-func (pipeline *Pipeline) Assign(clientID string) {
-	pipeline.clientID = clientID
+func (pipeline *Pipeline) Assign(synchronizerID string) {
+	pipeline.synchronizerID = synchronizerID
 }
 
 func (pipeline *Pipeline) Release() {
-	pipeline.clientID = ""
+	pipeline.synchronizerID = ""
 }

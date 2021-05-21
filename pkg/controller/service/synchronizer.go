@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"encoding/json"
 	"errors"
 	"time"
 
@@ -21,6 +22,31 @@ func NewSynchronizer(sm *SynchronizerManager, id string) *Synchronizer {
 		id:                  id,
 		pipelines:           make([]uint64, 0),
 	}
+}
+
+func (synchronizer *Synchronizer) save() error {
+
+	// Update store
+	store, err := synchronizer.synchronizerManager.controller.store.GetEngine().GetStore("gravity_synchronizer_manager")
+	if err != nil {
+		return nil
+	}
+
+	// Preparing JSON string
+	data, err := json.Marshal(map[string]interface{}{
+		"id":        synchronizer.id,
+		"pipelines": synchronizer.pipelines,
+	})
+	if err != nil {
+		return err
+	}
+
+	err = store.Put("synchronizers", []byte(synchronizer.id), data)
+	if err != nil {
+		return err
+	}
+
+	return nil
 }
 
 func (synchronizer *Synchronizer) getConnection() *nats.Conn {
@@ -58,6 +84,7 @@ func (synchronizer *Synchronizer) AssignPipeline(pipelineID uint64) error {
 	}
 
 	synchronizer.pipelines = append(synchronizer.pipelines, pipelineID)
+	synchronizer.save()
 
 	return nil
 }
@@ -101,6 +128,7 @@ func (synchronizer *Synchronizer) ReleasePipeline(pipelineID uint64) bool {
 		if id == pipelineID {
 			// Remove pipeline
 			synchronizer.pipelines = append(synchronizer.pipelines[:idx], synchronizer.pipelines[idx+1:]...)
+			synchronizer.save()
 			return true
 		}
 	}

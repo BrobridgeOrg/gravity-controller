@@ -43,7 +43,6 @@ func (sm *SubscriberManager) Initialize() error {
 
 	store.List("subscribers", []byte(""), func(key []byte, value []byte) bool {
 
-		log.Info(string(value))
 		var data map[string]interface{}
 		json.Unmarshal(value, &data)
 

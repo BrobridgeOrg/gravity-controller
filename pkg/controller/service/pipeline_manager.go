@@ -29,8 +29,12 @@ func (pm *PipelineManager) Initialize() error {
 	pipelineCount := viper.GetUint64("controller.pipelineCount")
 	pm.pendingTasks = make(chan *Task, pipelineCount)
 	for i := uint64(0); i < pipelineCount; i++ {
-		pipeline := NewPipeline(i)
-		pm.pipelines[i] = pipeline
+
+		if _, ok := pm.pipelines[i]; ok {
+			continue
+		}
+
+		pipeline := pm.addPipeline(i, "")
 		pm.pendingTasks <- NewTask(nil, pipeline)
 	}
 
@@ -57,6 +61,14 @@ func (pm *PipelineManager) watchTasks() {
 			}
 		}
 	}
+}
+
+func (pm *PipelineManager) addPipeline(pipelineID uint64, synchronizerID string) *Pipeline {
+	pipeline := NewPipeline(pipelineID)
+	pipeline.Assign(synchronizerID)
+	pm.pipelines[pipelineID] = pipeline
+
+	return pipeline
 }
 
 func (pm *PipelineManager) assignPipeline(synchronizer *Synchronizer, pipeline *Pipeline) error {

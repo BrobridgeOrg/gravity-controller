@@ -67,13 +67,6 @@ func (controller *Controller) Init() error {
 		return controller.Init()
 	}
 
-	// Initializing pipeline manager
-	err = controller.pipelineManager.Initialize()
-	if err != nil {
-		log.Error(err)
-		return nil
-	}
-
 	// Initializing adapter manager
 	err = controller.adapterManager.Initialize()
 	if err != nil {
@@ -83,6 +76,13 @@ func (controller *Controller) Init() error {
 
 	// Initializing synchronizer manager
 	err = controller.synchronizerManager.Initialize()
+	if err != nil {
+		log.Error(err)
+		return nil
+	}
+
+	// Initializing pipeline manager
+	err = controller.pipelineManager.Initialize()
 	if err != nil {
 		log.Error(err)
 		return nil
