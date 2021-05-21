@@ -175,16 +175,17 @@ func (sm *SubscriberManager) Unregister(subscriberID string) error {
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
 
-	/*
-		subscriber, ok := controller.subscriberClients[subscriberID]
-		if ok {
-			return nil
-		}
+	// Release
+	subscriber, ok := sm.subscribers[subscriberID]
+	if ok {
+		return nil
+	}
 
-		//TODO call synchronizer api to stop send event
-	*/
+	subscriber.release()
 
-	// Take off subscriber from registry
+	//TODO call synchronizer api to stop send event
+
+	// Remove subscriber from registry
 	delete(sm.subscribers, subscriberID)
 
 	return nil

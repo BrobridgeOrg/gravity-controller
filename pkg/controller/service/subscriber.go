@@ -66,6 +66,17 @@ func (sc *Subscriber) save() error {
 	return nil
 }
 
+func (sc *Subscriber) release() error {
+
+	// Update store
+	store, err := sc.controller.store.GetEngine().GetStore("gravity_subscriber_manager")
+	if err != nil {
+		return nil
+	}
+
+	return store.Delete("subscribers", []byte(sc.id))
+}
+
 func (sc *Subscriber) addCollections(collections []string) []string {
 
 	results := make([]string, 0, len(collections))
