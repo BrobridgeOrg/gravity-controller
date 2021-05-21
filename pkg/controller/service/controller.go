@@ -5,11 +5,11 @@ import (
 	"fmt"
 	"os"
 	"strings"
-	"sync"
 	"time"
 
 	"github.com/BrobridgeOrg/gravity-controller/pkg/app"
 	"github.com/BrobridgeOrg/gravity-sdk/core"
+	gravity_store "github.com/BrobridgeOrg/gravity-sdk/core/store"
 	log "github.com/sirupsen/logrus"
 )
 
@@ -21,8 +21,7 @@ type Controller struct {
 	synchronizerManager *SynchronizerManager
 	pipelineManager     *PipelineManager
 	subscriberManager   *SubscriberManager
-
-	mutex sync.RWMutex
+	store               *gravity_store.Store
 }
 
 func NewController(a app.App) *Controller {
@@ -51,6 +50,13 @@ func (controller *Controller) Init() error {
 	host = strings.ReplaceAll(host, ".", "_")
 
 	controller.clientID = fmt.Sprintf("gravity_controller-%s", host)
+
+	// Initializing store
+	err = controller.initializeStore()
+	if err != nil {
+		log.Error(err)
+		return err
+	}
 
 	// Initializing gravity
 	err = controller.initializeClient()

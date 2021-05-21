@@ -4,3 +4,4 @@ port = 32803
 
 [controller]
 pipelineCount = 256
+storePath = "./datastore"

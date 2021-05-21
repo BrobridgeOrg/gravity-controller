@@ -3,7 +3,6 @@ module github.com/BrobridgeOrg/gravity-controller
 go 1.13
 
 require (
-	github.com/BrobridgeOrg/EventStore v0.0.5 // indirect
 	github.com/BrobridgeOrg/gravity-api v0.2.14
 	github.com/BrobridgeOrg/gravity-sdk v0.0.6
 	github.com/cfsghost/grpc-connection-pool v0.6.0
@@ -20,3 +19,4 @@ require (
 )
 
 //replace github.com/BrobridgeOrg/gravity-api => ../gravity-api
+replace github.com/BrobridgeOrg/gravity-sdk => ../gravity-sdk

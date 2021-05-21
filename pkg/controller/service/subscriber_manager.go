@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"encoding/json"
 	"errors"
 	"fmt"
 	"sync"
@@ -27,12 +28,85 @@ func NewSubscriberManager(controller *Controller) *SubscriberManager {
 
 func (sm *SubscriberManager) Initialize() error {
 
-	err := sm.initialize_rpc()
+	// Restore states from store
+	store, err := sm.controller.store.GetEngine().GetStore("gravity_subscriber_manager")
+	if err != nil {
+		return nil
+	}
+
+	err = store.RegisterColumns([]string{"subscribers"})
+	if err != nil {
+		return nil
+	}
+
+	log.Info("Trying to restoring subscribers...")
+
+	store.List("subscribers", []byte(""), func(key []byte, value []byte) bool {
+
+		log.Info(string(value))
+		var data map[string]interface{}
+		json.Unmarshal(value, &data)
+
+		subscriber, err := sm.addSubscriber(
+			subscriber_manager_pb.SubscriberType(data["type"].(float64)),
+			data["component"].(string),
+			data["id"].(string),
+			data["name"].(string),
+		)
+		if err != nil {
+			log.Error(err)
+			return false
+		}
+
+		log.WithFields(log.Fields{
+			"id":        subscriber.id,
+			"name":      subscriber.name,
+			"component": subscriber.component,
+			"type":      subscriber_manager_pb.SubscriberType_name[int32(subscriber.subscriberType)],
+		}).Info("Restored subscriber")
+
+		if data["collections"] != nil {
+			cols := data["collections"].([]interface{})
+
+			collections := make([]string, 0, len(cols))
+			for _, col := range cols {
+				if col == nil {
+					continue
+				}
+
+				collections = append(collections, col.(string))
+				log.Info("  collection: " + col.(string))
+			}
+
+			subscriber.addCollections(collections)
+		}
+
+		return true
+	})
+
+	err = sm.initialize_rpc()
 	if err != nil {
 		return err
 	}
 
 	return nil
+}
+
+func (sm *SubscriberManager) addSubscriber(subscriberType subscriber_manager_pb.SubscriberType, component string, subscriberID string, name string) (*Subscriber, error) {
+
+	sm.mutex.Lock()
+	defer sm.mutex.Unlock()
+
+	_, ok := sm.subscribers[subscriberID]
+	if ok {
+		return nil, errors.New("Subscriber ID exists already")
+	}
+
+	// Create a new subscriber
+	subscriber := NewSubscriber(sm.controller, subscriberType, component, subscriberID, name)
+	sm.subscribers[subscriberID] = subscriber
+
+	return subscriber, nil
 }
 
 func (sm *SubscriberManager) register(eventstoreID string, subscriberID string) error {
@@ -68,17 +142,10 @@ func (sm *SubscriberManager) register(eventstoreID string, subscriberID string) 
 
 func (sm *SubscriberManager) Register(subscriberType subscriber_manager_pb.SubscriberType, component string, subscriberID string, name string) error {
 
-	sm.mutex.Lock()
-	defer sm.mutex.Unlock()
-
-	_, ok := sm.subscribers[subscriberID]
-	if ok {
-		return errors.New("Subscriber ID exists already")
+	subscriber, err := sm.addSubscriber(subscriberType, component, subscriberID, name)
+	if err != nil {
+		return err
 	}
-
-	// Create a new subscriber
-	subscriber := NewSubscriber(sm.controller, subscriberType, component, subscriberID, name)
-	sm.subscribers[subscriberID] = subscriber
 
 	log.WithFields(log.Fields{
 		"subscriberID": subscriberID,
@@ -93,6 +160,12 @@ func (sm *SubscriberManager) Register(subscriberType subscriber_manager_pb.Subsc
 		if err != nil {
 			return errors.New("Failed to register subscriber on eventstore: " + synchronizerID)
 		}
+	}
+
+	// Save state
+	err = subscriber.save()
+	if err != nil {
+		log.Error(err)
 	}
 
 	return nil
