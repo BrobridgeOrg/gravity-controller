@@ -3,6 +3,7 @@ package controller
 import (
 	subscriber_manager_pb "github.com/BrobridgeOrg/gravity-api/service/subscriber_manager"
 	"github.com/golang/protobuf/proto"
+	"github.com/golang/protobuf/ptypes"
 	"github.com/nats-io/nats.go"
 	log "github.com/sirupsen/logrus"
 )
@@ -15,6 +16,11 @@ func (sm *SubscriberManager) initialize_rpc() error {
 	}
 
 	err = sm.initialize_rpc_unregister()
+	if err != nil {
+		return err
+	}
+
+	err = sm.initialize_rpc_health_check()
 	if err != nil {
 		return err
 	}
@@ -126,6 +132,53 @@ func (sm *SubscriberManager) initialize_rpc_unregister() error {
 	return nil
 }
 
+func (sm *SubscriberManager) initialize_rpc_health_check() error {
+
+	connection := sm.controller.gravityClient.GetConnection()
+
+	log.WithFields(log.Fields{
+		"name": "gravity.subscriber_manager.healthCheck",
+	}).Info("Unsubscribing to channel")
+
+	_, err := connection.Subscribe("gravity.subscriber_manager.healthCheck", func(m *nats.Msg) {
+
+		// Reply
+		reply := subscriber_manager_pb.HealthCheckReply{
+			Success: true,
+		}
+		defer func() {
+			data, _ := proto.Marshal(&reply)
+			m.Respond(data)
+		}()
+
+		// Parsing request data
+		var req subscriber_manager_pb.HealthCheckRequest
+		err := proto.Unmarshal(m.Data, &req)
+		if err != nil {
+			log.Error(err)
+
+			reply.Success = false
+			reply.Reason = "UnknownParameter"
+			return
+		}
+
+		err = sm.HealthCheck(req.SubscriberID)
+		if err != nil {
+			log.Error(err)
+
+			reply.Success = false
+			reply.Reason = err.Error()
+			return
+		}
+
+	})
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
+
 func (sm *SubscriberManager) initialize_rpc_get_subscribers() error {
 
 	connection := sm.controller.gravityClient.GetConnection()
@@ -171,11 +224,15 @@ func (sm *SubscriberManager) initialize_rpc_get_subscribers() error {
 		// Preparing results
 		subscribers := make([]*subscriber_manager_pb.Subscriber, 0, len(results))
 		for _, subscriber := range results {
+
+			lastCheck, _ := ptypes.TimestampProto(subscriber.lastCheck)
+
 			subscribers = append(subscribers, &subscriber_manager_pb.Subscriber{
 				SubscriberID: subscriber.id,
 				Name:         subscriber.name,
 				Type:         subscriber.subscriberType,
 				Component:    subscriber.component,
+				LastCheck:    lastCheck,
 			})
 		}
 

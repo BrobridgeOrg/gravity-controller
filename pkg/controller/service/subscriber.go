@@ -20,6 +20,7 @@ type Subscriber struct {
 	component      string
 	subscriberType subscriber_manager_pb.SubscriberType
 	collections    sync.Map
+	lastCheck      time.Time
 }
 
 func NewSubscriber(controller *Controller, subscriberType subscriber_manager_pb.SubscriberType, component string, id string, name string) *Subscriber {
@@ -29,6 +30,7 @@ func NewSubscriber(controller *Controller, subscriberType subscriber_manager_pb.
 		name:           name,
 		component:      component,
 		subscriberType: subscriberType,
+		lastCheck:      time.Now(),
 	}
 }
 
@@ -75,6 +77,11 @@ func (sc *Subscriber) release() error {
 	}
 
 	return store.Delete("subscribers", []byte(sc.id))
+}
+
+func (sc *Subscriber) healthCheck() error {
+	sc.lastCheck = time.Now()
+	return nil
 }
 
 func (sc *Subscriber) addCollections(collections []string) []string {

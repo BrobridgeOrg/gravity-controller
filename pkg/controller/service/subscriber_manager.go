@@ -191,6 +191,19 @@ func (sm *SubscriberManager) Unregister(subscriberID string) error {
 	return nil
 }
 
+func (sm *SubscriberManager) HealthCheck(subscriberID string) error {
+
+	sm.mutex.RLock()
+	defer sm.mutex.RUnlock()
+
+	subscriber, ok := sm.subscribers[subscriberID]
+	if !ok {
+		return nil
+	}
+
+	return subscriber.healthCheck()
+}
+
 func (sm *SubscriberManager) GetSubscriber(subscriberID string) *Subscriber {
 
 	subscriber, ok := sm.subscribers[subscriberID]
