@@ -18,6 +18,6 @@ require (
 	google.golang.org/protobuf v1.25.0 // indirect
 )
 
-replace github.com/BrobridgeOrg/gravity-api => ../gravity-api
+//replace github.com/BrobridgeOrg/gravity-api => ../gravity-api
 
-replace github.com/BrobridgeOrg/gravity-sdk => ../gravity-sdk
+//replace github.com/BrobridgeOrg/gravity-sdk => ../gravity-sdk
