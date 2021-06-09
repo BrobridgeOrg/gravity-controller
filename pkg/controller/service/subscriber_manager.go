@@ -110,7 +110,7 @@ func (sm *SubscriberManager) addSubscriber(subscriberType subscriber_manager_pb.
 
 func (sm *SubscriberManager) register(eventstoreID string, subscriberID string) error {
 
-	channel := fmt.Sprintf("gravity.eventstore.%s.registerSubscriber", eventstoreID)
+	channel := fmt.Sprintf("%s.eventstore.%s.registerSubscriber", sm.controller.domain, eventstoreID)
 
 	request := synchronizer_pb.RegisterSubscriberRequest{
 		SubscriberID: subscriberID,

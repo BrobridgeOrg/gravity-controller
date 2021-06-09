@@ -1,6 +1,8 @@
 package controller
 
 import (
+	"fmt"
+
 	subscriber_manager_pb "github.com/BrobridgeOrg/gravity-api/service/subscriber_manager"
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes"
@@ -41,12 +43,13 @@ func (sm *SubscriberManager) initialize_rpc() error {
 func (sm *SubscriberManager) initialize_rpc_register() error {
 
 	connection := sm.controller.gravityClient.GetConnection()
+	channel := fmt.Sprintf("%s.subscriber_manager.registerSubscriber", sm.controller.domain)
 
 	log.WithFields(log.Fields{
-		"name": "gravity.subscriber_manager.registerSubscriber",
+		"name": channel,
 	}).Info("Subscribing to channel")
 
-	_, err := connection.Subscribe("gravity.subscriber_manager.registerSubscriber", func(m *nats.Msg) {
+	_, err := connection.Subscribe(channel, func(m *nats.Msg) {
 
 		// Reply
 		reply := subscriber_manager_pb.RegisterSubscriberReply{
@@ -88,12 +91,13 @@ func (sm *SubscriberManager) initialize_rpc_register() error {
 func (sm *SubscriberManager) initialize_rpc_unregister() error {
 
 	connection := sm.controller.gravityClient.GetConnection()
+	channel := fmt.Sprintf("%s.subscriber_manager.unregisterSubscriber", sm.controller.domain)
 
 	log.WithFields(log.Fields{
-		"name": "gravity.subscriber_manager.unregisterSubscriber",
+		"name": channel,
 	}).Info("Unsubscribing to channel")
 
-	_, err := connection.Subscribe("gravity.subscriber_manager.unregisterSubscriber", func(m *nats.Msg) {
+	_, err := connection.Subscribe(channel, func(m *nats.Msg) {
 
 		// Reply
 		reply := subscriber_manager_pb.UnregisterSubscriberReply{
@@ -135,12 +139,13 @@ func (sm *SubscriberManager) initialize_rpc_unregister() error {
 func (sm *SubscriberManager) initialize_rpc_health_check() error {
 
 	connection := sm.controller.gravityClient.GetConnection()
+	channel := fmt.Sprintf("%s.subscriber_manager.healthCheck", sm.controller.domain)
 
 	log.WithFields(log.Fields{
-		"name": "gravity.subscriber_manager.healthCheck",
+		"name": channel,
 	}).Info("Unsubscribing to channel")
 
-	_, err := connection.Subscribe("gravity.subscriber_manager.healthCheck", func(m *nats.Msg) {
+	_, err := connection.Subscribe(channel, func(m *nats.Msg) {
 
 		// Reply
 		reply := subscriber_manager_pb.HealthCheckReply{
@@ -182,14 +187,13 @@ func (sm *SubscriberManager) initialize_rpc_health_check() error {
 func (sm *SubscriberManager) initialize_rpc_get_subscribers() error {
 
 	connection := sm.controller.gravityClient.GetConnection()
+	channel := fmt.Sprintf("%s.subscriber_manager.getSubscribers", sm.controller.domain)
 
 	log.WithFields(log.Fields{
-		"name": "gravity.subscriber_manager.getSubscribers",
+		"name": channel,
 	}).Info("Subscribing to channel")
 
-	_, err := connection.Subscribe("gravity.subscriber_manager.getSubscribers", func(m *nats.Msg) {
-
-		log.Info("gravity.subscriber_manager.getSubscribers")
+	_, err := connection.Subscribe(channel, func(m *nats.Msg) {
 
 		// Reply
 		reply := subscriber_manager_pb.GetSubscribersReply{
@@ -248,12 +252,13 @@ func (sm *SubscriberManager) initialize_rpc_get_subscribers() error {
 func (sm *SubscriberManager) initialize_rpc_subscribe_to_collections() error {
 
 	connection := sm.controller.gravityClient.GetConnection()
+	channel := fmt.Sprintf("%s.subscriber_manager.subscribeToCollections", sm.controller.domain)
 
 	log.WithFields(log.Fields{
-		"name": "gravity.subscriber_manager.registerSubscriber",
+		"name": channel,
 	}).Info("Subscribing to channel")
 
-	_, err := connection.Subscribe("gravity.subscriber_manager.subscribeToCollections", func(m *nats.Msg) {
+	_, err := connection.Subscribe(channel, func(m *nats.Msg) {
 
 		// Reply
 		reply := subscriber_manager_pb.SubscribeToCollectionsReply{

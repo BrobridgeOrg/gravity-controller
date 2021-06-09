@@ -1,6 +1,8 @@
 package controller
 
 import (
+	"fmt"
+
 	"github.com/golang/protobuf/proto"
 	"github.com/nats-io/nats.go"
 	log "github.com/sirupsen/logrus"
@@ -21,12 +23,13 @@ func (am *AdapterManager) initialize_rpc() error {
 func (am *AdapterManager) initialize_rpc_register() error {
 
 	connection := am.controller.gravityClient.GetConnection()
+	channel := fmt.Sprintf("%s.adapter_manager.register", am.controller.domain)
 
 	log.WithFields(log.Fields{
-		"name": "gravity.adapter_manager.register",
+		"name": channel,
 	}).Info("Subscribing to channel")
 
-	_, err := connection.Subscribe("gravity.adapter_manager.register", func(m *nats.Msg) {
+	_, err := connection.Subscribe(channel, func(m *nats.Msg) {
 
 		// Reply
 		reply := pb.RegisterAdapterReply{
@@ -67,12 +70,13 @@ func (am *AdapterManager) initialize_rpc_register() error {
 func (am *AdapterManager) initialize_rpc_unregister() error {
 
 	connection := am.controller.gravityClient.GetConnection()
+	channel := fmt.Sprintf("%s.adapter_manager.unregister", am.controller.domain)
 
 	log.WithFields(log.Fields{
-		"name": "gravity.adapter_manager.unregister",
+		"name": channel,
 	}).Info("Subscribing to channel")
 
-	_, err := connection.Subscribe("gravity.adapter_manager.unregister", func(m *nats.Msg) {
+	_, err := connection.Subscribe(channel, func(m *nats.Msg) {
 
 		// Reply
 		reply := pb.UnregisterAdapterReply{

@@ -19,4 +19,4 @@ require (
 
 //replace github.com/BrobridgeOrg/gravity-api => ../gravity-api
 
-//replace github.com/BrobridgeOrg/gravity-sdk => ../gravity-sdk
+replace github.com/BrobridgeOrg/gravity-sdk => ../gravity-sdk

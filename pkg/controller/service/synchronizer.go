@@ -3,6 +3,7 @@ package controller
 import (
 	"encoding/json"
 	"errors"
+	"fmt"
 	"time"
 
 	synchronizer_pb "github.com/BrobridgeOrg/gravity-api/service/synchronizer"
@@ -68,7 +69,8 @@ func (synchronizer *Synchronizer) AssignPipeline(pipelineID uint64) error {
 	}
 
 	// Send request to synchronizer
-	response, err := connection.Request("gravity.eventstore."+synchronizer.id+".AssignPipeline", data, time.Second*5)
+	channel := fmt.Sprintf("%s.eventstore.%s.AssignPipeline", synchronizer.synchronizerManager.controller.domain, synchronizer.id)
+	response, err := connection.Request(channel, data, time.Second*5)
 	if err != nil {
 		return err
 	}
@@ -104,7 +106,8 @@ func (synchronizer *Synchronizer) RevokePipeline(pipelineID uint64) error {
 	}
 
 	// Send request to synchronizer
-	response, err := connection.Request("gravity.eventstore."+synchronizer.id+".RevokePipeline", data, time.Second*5)
+	channel := fmt.Sprintf("%s.eventstore.%s.RevokePipeline", synchronizer.synchronizerManager.controller.domain, synchronizer.id)
+	response, err := connection.Request(channel, data, time.Second*5)
 	if err != nil {
 		return err
 	}
@@ -150,7 +153,8 @@ func (synchronizer *Synchronizer) RegisterSubscriber(subscriberID string) error 
 	}
 
 	// Send request to synchronizer
-	response, err := connection.Request("gravity.eventstore."+synchronizer.id+".RegisterSubscriber", data, time.Second*5)
+	channel := fmt.Sprintf("%s.eventstore.%s.RegisterSubscriber", synchronizer.synchronizerManager.controller.domain, synchronizer.id)
+	response, err := connection.Request(channel, data, time.Second*5)
 	if err != nil {
 		return err
 	}
@@ -182,7 +186,8 @@ func (synchronizer *Synchronizer) UnregisterSubscriber(subscriberID string) erro
 	}
 
 	// Send request to synchronizer
-	response, err := connection.Request("gravity.eventstore."+synchronizer.id+".UnregisterSubscriber", data, time.Second*5)
+	channel := fmt.Sprintf("%s.eventstore.%s.UnregisterSubscriber", synchronizer.synchronizerManager.controller.domain, synchronizer.id)
+	response, err := connection.Request(channel, data, time.Second*5)
 	if err != nil {
 		return err
 	}

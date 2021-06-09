@@ -104,7 +104,7 @@ func (sc *Subscriber) addCollections(collections []string) []string {
 
 func (sc *Subscriber) subscribeToCollections(eventstoreID string, collections []string) error {
 
-	channel := fmt.Sprintf("gravity.eventstore.%s.subscribeToCollections", eventstoreID)
+	channel := fmt.Sprintf("%s.eventstore.%s.subscribeToCollections", sc.controller.domain, eventstoreID)
 
 	request := synchronizer_pb.SubscribeToCollectionsRequest{
 		SubscriberID: sc.id,

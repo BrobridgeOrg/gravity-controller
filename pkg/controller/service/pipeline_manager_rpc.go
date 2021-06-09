@@ -1,6 +1,8 @@
 package controller
 
 import (
+	"fmt"
+
 	"github.com/golang/protobuf/proto"
 	"github.com/nats-io/nats.go"
 	log "github.com/sirupsen/logrus"
@@ -21,12 +23,13 @@ func (pm *PipelineManager) initialize_rpc() error {
 func (pm *PipelineManager) initialize_rpc_get_count() error {
 
 	connection := pm.controller.gravityClient.GetConnection()
+	channel := fmt.Sprintf("%s.pipeline_manager.getCount", pm.controller.domain)
 
 	log.WithFields(log.Fields{
-		"name": "gravity.pipeline_manager.getCount",
+		"name": channel,
 	}).Info("Subscribing to channel")
 
-	_, err := connection.Subscribe("gravity.pipeline_manager.getCount", func(m *nats.Msg) {
+	_, err := connection.Subscribe(channel, func(m *nats.Msg) {
 
 		// Reply
 		reply := pb.GetPipelineCountReply{

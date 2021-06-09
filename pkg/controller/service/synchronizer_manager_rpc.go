@@ -1,6 +1,8 @@
 package controller
 
 import (
+	"fmt"
+
 	synchronizer_manager_pb "github.com/BrobridgeOrg/gravity-api/service/synchronizer_manager"
 	"github.com/golang/protobuf/proto"
 	"github.com/nats-io/nats.go"
@@ -30,12 +32,13 @@ func (sm *SynchronizerManager) initialize_rpc() error {
 func (sm *SynchronizerManager) initialize_rpc_register() error {
 
 	connection := sm.controller.gravityClient.GetConnection()
+	channel := fmt.Sprintf("%s.synchronizer_manager.register", sm.controller.domain)
 
 	log.WithFields(log.Fields{
-		"name": "gravity.synchronizer_manager.register",
+		"name": channel,
 	}).Info("Subscribing to RPC channel")
 
-	_, err := connection.Subscribe("gravity.synchronizer_manager.register", func(m *nats.Msg) {
+	_, err := connection.Subscribe(channel, func(m *nats.Msg) {
 
 		// Reply
 		reply := synchronizer_manager_pb.RegisterSynchronizerReply{
@@ -81,12 +84,13 @@ func (sm *SynchronizerManager) initialize_rpc_register() error {
 func (sm *SynchronizerManager) initialize_rpc_unregister() error {
 
 	connection := sm.controller.gravityClient.GetConnection()
+	channel := fmt.Sprintf("%s.synchronizer_manager.unregister", sm.controller.domain)
 
 	log.WithFields(log.Fields{
-		"name": "gravity.synchronizer_manager.unregister",
+		"name": channel,
 	}).Info("Subscribing to RPC channel")
 
-	_, err := connection.Subscribe("gravity.synchronizer_manager.unregister", func(m *nats.Msg) {
+	_, err := connection.Subscribe(channel, func(m *nats.Msg) {
 
 		// Reply
 		reply := synchronizer_manager_pb.UnregisterSynchronizerReply{
@@ -128,12 +132,13 @@ func (sm *SynchronizerManager) initialize_rpc_unregister() error {
 func (sm *SynchronizerManager) initialize_rpc_get_pipelines() error {
 
 	connection := sm.controller.gravityClient.GetConnection()
+	channel := fmt.Sprintf("%s.synchronizer_manager.getPipelines", sm.controller.domain)
 
 	log.WithFields(log.Fields{
-		"name": "gravity.synchronizer_manager.getPipelines",
+		"name": channel,
 	}).Info("Subscribing to RPC channel")
 
-	_, err := connection.Subscribe("gravity.synchronizer_manager.getPipelines", func(m *nats.Msg) {
+	_, err := connection.Subscribe(channel, func(m *nats.Msg) {
 
 		// Reply
 		reply := synchronizer_manager_pb.GetPipelinesReply{

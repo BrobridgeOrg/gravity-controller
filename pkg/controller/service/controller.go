@@ -16,6 +16,7 @@ import (
 type Controller struct {
 	app                 app.App
 	gravityClient       *core.Client
+	domain              string
 	clientID            string
 	adapterManager      *AdapterManager
 	synchronizerManager *SynchronizerManager
