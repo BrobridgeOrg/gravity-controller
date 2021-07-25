@@ -19,12 +19,14 @@ func (controller *Controller) initializeClient() error {
 
 	// default settings
 	viper.SetDefault("gravity.domain", "gravity")
+	viper.SetDefault("gravity.accessKey", "")
 	viper.SetDefault("gravity.pingInterval", DefaultPingInterval)
 	viper.SetDefault("gravity.maxPingsOutstanding", DefaultMaxPingsOutstanding)
 	viper.SetDefault("gravity.maxReconnects", DefaultMaxReconnects)
 
 	// Read configs
 	domain := viper.GetString("gravity.domain")
+	accessKey := viper.GetString("gravity.accessKey")
 	host := viper.GetString("gravity.host")
 	port := viper.GetInt("gravity.port")
 	pingInterval := viper.GetInt64("gravity.pingInterval")
@@ -47,6 +49,10 @@ func (controller *Controller) initializeClient() error {
 	}).Info("Connecting to gravity...")
 
 	controller.domain = domain
+
+	// Initializing keyring
+	keyInfo := controller.keyring.Put("gravity", accessKey)
+	keyInfo.Permission().AddPermissions([]string{"SYSTEM"})
 
 	// Connect
 	return controller.gravityClient.Connect(address, options)

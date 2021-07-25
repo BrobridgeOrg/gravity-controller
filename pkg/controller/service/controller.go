@@ -9,6 +9,7 @@ import (
 
 	"github.com/BrobridgeOrg/gravity-controller/pkg/app"
 	"github.com/BrobridgeOrg/gravity-sdk/core"
+	"github.com/BrobridgeOrg/gravity-sdk/core/keyring"
 	gravity_store "github.com/BrobridgeOrg/gravity-sdk/core/store"
 	log "github.com/sirupsen/logrus"
 )
@@ -18,6 +19,7 @@ type Controller struct {
 	gravityClient       *core.Client
 	domain              string
 	clientID            string
+	keyring             *keyring.Keyring
 	adapterManager      *AdapterManager
 	synchronizerManager *SynchronizerManager
 	pipelineManager     *PipelineManager
@@ -29,6 +31,7 @@ func NewController(a app.App) *Controller {
 	controller := &Controller{
 		app:           a,
 		gravityClient: core.NewClient(),
+		keyring:       keyring.NewKeyring(),
 	}
 
 	controller.adapterManager = NewAdapterManager(controller)

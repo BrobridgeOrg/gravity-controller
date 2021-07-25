@@ -7,26 +7,44 @@ import (
 	"sync"
 	"time"
 
+	"github.com/BrobridgeOrg/broc"
+	packet_pb "github.com/BrobridgeOrg/gravity-api/packet"
 	subscriber_manager_pb "github.com/BrobridgeOrg/gravity-api/service/subscriber_manager"
 	synchronizer_pb "github.com/BrobridgeOrg/gravity-api/service/synchronizer"
+	authenticator "github.com/BrobridgeOrg/gravity-sdk/authenticator"
 	"github.com/golang/protobuf/proto"
 	log "github.com/sirupsen/logrus"
+	"github.com/spf13/viper"
 )
 
 type SubscriberManager struct {
-	controller  *Controller
-	subscribers map[string]*Subscriber
-	mutex       sync.RWMutex
+	controller         *Controller
+	requiredAuth       bool
+	authServiceChannel string
+	authenticator      *authenticator.Authenticator
+	rpcEngine          *broc.Broc
+	subscribers        map[string]*Subscriber
+	mutex              sync.RWMutex
 }
 
 func NewSubscriberManager(controller *Controller) *SubscriberManager {
 	return &SubscriberManager{
-		controller:  controller,
-		subscribers: make(map[string]*Subscriber),
+		controller:   controller,
+		requiredAuth: false,
+		subscribers:  make(map[string]*Subscriber),
 	}
 }
 
 func (sm *SubscriberManager) Initialize() error {
+
+	// Load configurations
+	viper.SetDefault("subscriber_manager.requiredAuth", false)
+	sm.requiredAuth = viper.GetBool("subscriber_manager.requiredAuth")
+
+	// channel for authentication
+	defChannel := fmt.Sprintf("%s.auth", sm.controller.domain)
+	viper.SetDefault("subscriber_manager.authServiceChannel", defChannel)
+	sm.authServiceChannel = viper.GetString("subscriber_manager.authServiceChannel")
 
 	// Restore states from store
 	store, err := sm.controller.store.GetEngine().GetStore("gravity_subscriber_manager")
@@ -51,6 +69,7 @@ func (sm *SubscriberManager) Initialize() error {
 			data["component"].(string),
 			data["id"].(string),
 			data["name"].(string),
+			data["properties"].(map[string]interface{}),
 		)
 		if err != nil {
 			log.Error(err)
@@ -83,6 +102,14 @@ func (sm *SubscriberManager) Initialize() error {
 		return true
 	})
 
+	// Initializing authenticator
+	authOpts := authenticator.NewOptions()
+
+	if sm.requiredAuth {
+		authOpts.AccessKey = viper.GetString("subscriber_manager.authServiceKey")
+		sm.authenticator = authenticator.NewAuthenticatorWithClient(sm.controller.gravityClient, authOpts)
+	}
+
 	err = sm.initialize_rpc()
 	if err != nil {
 		return err
@@ -91,7 +118,55 @@ func (sm *SubscriberManager) Initialize() error {
 	return nil
 }
 
-func (sm *SubscriberManager) addSubscriber(subscriberType subscriber_manager_pb.SubscriberType, component string, subscriberID string, name string) (*Subscriber, error) {
+func (sm *SubscriberManager) request(eventstoreID string, method string, data []byte, encrypted bool) ([]byte, error) {
+
+	conn := sm.controller.gravityClient.GetConnection()
+
+	// Preparing packet
+	packet := packet_pb.Packet{
+		AppID:   "gravity",
+		Payload: data,
+	}
+
+	// find the key for gravity
+	keyInfo := sm.controller.keyring.Get("gravity")
+	if keyInfo == nil {
+		return []byte(""), errors.New("No access key for gravity")
+	}
+
+	// Encrypt
+	if encrypted {
+		payload, err := keyInfo.Encryption().Encrypt(data)
+		if err != nil {
+			return []byte(""), err
+		}
+
+		packet.Payload = payload
+	}
+
+	msg, _ := proto.Marshal(&packet)
+
+	// Send request
+	channel := fmt.Sprintf("%s.eventstore.%s.%s", sm.controller.domain, eventstoreID, method)
+	resp, err := conn.Request(channel, msg, time.Second*10)
+	if err != nil {
+		return []byte(""), err
+	}
+
+	// Decrypt
+	if encrypted {
+		data, err = keyInfo.Encryption().Decrypt(resp.Data)
+		if err != nil {
+			return []byte(""), err
+		}
+
+		return data, nil
+	}
+
+	return resp.Data, nil
+}
+
+func (sm *SubscriberManager) addSubscriber(subscriberType subscriber_manager_pb.SubscriberType, component string, subscriberID string, name string, properties map[string]interface{}) (*Subscriber, error) {
 
 	sm.mutex.Lock()
 	defer sm.mutex.Unlock()
@@ -102,31 +177,30 @@ func (sm *SubscriberManager) addSubscriber(subscriberType subscriber_manager_pb.
 	}
 
 	// Create a new subscriber
-	subscriber := NewSubscriber(sm.controller, subscriberType, component, subscriberID, name)
+	subscriber := NewSubscriber(sm.controller, subscriberType, component, subscriberID, name, properties)
 	sm.subscribers[subscriberID] = subscriber
 
 	return subscriber, nil
 }
 
-func (sm *SubscriberManager) register(eventstoreID string, subscriberID string) error {
-
-	channel := fmt.Sprintf("%s.eventstore.%s.registerSubscriber", sm.controller.domain, eventstoreID)
+func (sm *SubscriberManager) register(eventstoreID string, subscriberID string, appID string, accessKey string) error {
 
 	request := synchronizer_pb.RegisterSubscriberRequest{
 		SubscriberID: subscriberID,
 		Name:         subscriberID,
+		AppID:        appID,
+		AccessKey:    accessKey,
 	}
 
 	msg, _ := proto.Marshal(&request)
 
-	conn := sm.controller.gravityClient.GetConnection()
-	resp, err := conn.Request(channel, msg, time.Second*10)
+	respData, err := sm.request(eventstoreID, "registerSubscriber", msg, true)
 	if err != nil {
 		return err
 	}
 
 	var reply synchronizer_pb.RegisterSubscriberReply
-	err = proto.Unmarshal(resp.Data, &reply)
+	err = proto.Unmarshal(respData, &reply)
 	if err != nil {
 		return err
 	}
@@ -139,9 +213,25 @@ func (sm *SubscriberManager) register(eventstoreID string, subscriberID string) 
 	return nil
 }
 
-func (sm *SubscriberManager) Register(subscriberType subscriber_manager_pb.SubscriberType, component string, subscriberID string, name string) error {
+func (sm *SubscriberManager) Register(subscriberType subscriber_manager_pb.SubscriberType, component string, appID string, token []byte, subscriberID string, name string, properties map[string]interface{}) error {
 
-	subscriber, err := sm.addSubscriber(subscriberType, component, subscriberID, name)
+	accessKey := ""
+
+	if sm.requiredAuth {
+		entity, err := sm.authenticator.Authenticate(appID, token)
+		if err != nil {
+			return err
+		}
+
+		properties["auth.appID"] = entity.AppID
+		properties["auth.appKey"] = entity.AccessKey
+		accessKey = entity.AccessKey
+
+		// Add to keyring
+		sm.controller.keyring.Put(entity.AppID, entity.AccessKey)
+	}
+
+	subscriber, err := sm.addSubscriber(subscriberType, component, subscriberID, name, properties)
 	if err != nil {
 		return err
 	}
@@ -155,7 +245,7 @@ func (sm *SubscriberManager) Register(subscriberType subscriber_manager_pb.Subsc
 
 	// call synchronizer api to register subscriber
 	for synchronizerID, _ := range sm.controller.synchronizerManager.GetSynchronizers() {
-		err := sm.register(synchronizerID, subscriberID)
+		err := sm.register(synchronizerID, subscriberID, appID, accessKey)
 		if err != nil {
 			return errors.New("Failed to register subscriber on eventstore: " + synchronizerID)
 		}
@@ -177,13 +267,16 @@ func (sm *SubscriberManager) Unregister(subscriberID string) error {
 
 	// Release
 	subscriber, ok := sm.subscribers[subscriberID]
-	if ok {
+	if !ok {
 		return nil
 	}
 
-	subscriber.release()
+	if sm.requiredAuth {
+		appID := subscriber.properties["auth.appID"].(string)
+		sm.controller.keyring.Unref(appID)
+	}
 
-	//TODO call synchronizer api to stop send event
+	subscriber.release()
 
 	// Remove subscriber from registry
 	delete(sm.subscribers, subscriberID)

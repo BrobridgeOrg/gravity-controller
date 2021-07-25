@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	packet_pb "github.com/BrobridgeOrg/gravity-api/packet"
 	subscriber_manager_pb "github.com/BrobridgeOrg/gravity-api/service/subscriber_manager"
 	synchronizer_pb "github.com/BrobridgeOrg/gravity-api/service/synchronizer"
 	"github.com/golang/protobuf/proto"
@@ -21,17 +22,73 @@ type Subscriber struct {
 	subscriberType subscriber_manager_pb.SubscriberType
 	collections    sync.Map
 	lastCheck      time.Time
+	properties     map[string]interface{}
 }
 
-func NewSubscriber(controller *Controller, subscriberType subscriber_manager_pb.SubscriberType, component string, id string, name string) *Subscriber {
-	return &Subscriber{
+func NewSubscriber(controller *Controller, subscriberType subscriber_manager_pb.SubscriberType, component string, id string, name string, properties map[string]interface{}) *Subscriber {
+	subscriber := &Subscriber{
 		controller:     controller,
 		id:             id,
 		name:           name,
 		component:      component,
 		subscriberType: subscriberType,
 		lastCheck:      time.Now(),
+		properties:     make(map[string]interface{}),
 	}
+
+	for key, value := range properties {
+		subscriber.properties[key] = value
+	}
+
+	return subscriber
+}
+
+func (sc *Subscriber) request(eventstoreID string, method string, data []byte, encrypted bool) ([]byte, error) {
+
+	conn := sc.controller.gravityClient.GetConnection()
+
+	// Preparing packet
+	packet := packet_pb.Packet{
+		AppID:   "gravity",
+		Payload: data,
+	}
+
+	// find the key for gravity
+	keyInfo := sc.controller.keyring.Get("gravity")
+	if keyInfo == nil {
+		return []byte(""), errors.New("No access key for gravity")
+	}
+
+	// Encrypt
+	if encrypted {
+		payload, err := keyInfo.Encryption().Encrypt(data)
+		if err != nil {
+			return []byte(""), err
+		}
+
+		packet.Payload = payload
+	}
+
+	msg, _ := proto.Marshal(&packet)
+
+	// Send request
+	channel := fmt.Sprintf("%s.eventstore.%s.%s", sc.controller.domain, eventstoreID, method)
+	resp, err := conn.Request(channel, msg, time.Second*10)
+	if err != nil {
+		return []byte(""), err
+	}
+
+	// Decrypt
+	if encrypted {
+		data, err = keyInfo.Encryption().Decrypt(resp.Data)
+		if err != nil {
+			return []byte(""), err
+		}
+
+		return data, nil
+	}
+
+	return resp.Data, nil
 }
 
 func (sc *Subscriber) save() error {
@@ -55,6 +112,7 @@ func (sc *Subscriber) save() error {
 		"component":   sc.component,
 		"type":        int32(sc.subscriberType),
 		"collections": collections,
+		"properties":  sc.properties,
 	})
 	if err != nil {
 		return err
@@ -104,8 +162,6 @@ func (sc *Subscriber) addCollections(collections []string) []string {
 
 func (sc *Subscriber) subscribeToCollections(eventstoreID string, collections []string) error {
 
-	channel := fmt.Sprintf("%s.eventstore.%s.subscribeToCollections", sc.controller.domain, eventstoreID)
-
 	request := synchronizer_pb.SubscribeToCollectionsRequest{
 		SubscriberID: sc.id,
 		Collections:  collections,
@@ -113,14 +169,13 @@ func (sc *Subscriber) subscribeToCollections(eventstoreID string, collections []
 
 	msg, _ := proto.Marshal(&request)
 
-	conn := sc.controller.gravityClient.GetConnection()
-	resp, err := conn.Request(channel, msg, time.Second*10)
+	respData, err := sc.request(eventstoreID, "subscribeToCollections", msg, true)
 	if err != nil {
 		return err
 	}
 
 	var reply synchronizer_pb.SubscribeToCollectionsReply
-	err = proto.Unmarshal(resp.Data, &reply)
+	err = proto.Unmarshal(respData, &reply)
 	if err != nil {
 		return err
 	}
@@ -143,6 +198,7 @@ func (sc *Subscriber) SubscribeToCollections(collections []string) ([]string, er
 			log.WithFields(log.Fields{
 				"synchronizer": synchronizerID,
 			}).Error(err)
+			return nil, err
 		}
 	}
 

@@ -1,8 +1,14 @@
 [gravity]
 domain = "gravity"
+accessKey = "TestingACCESSkey"
 host = "0.0.0.0"
 port = 32803
 
 [controller]
 pipelineCount = 4
 storePath = "./datastore"
+
+[subscriber_manager]
+requiredAuth = false
+authServiceChannel = "gravity.auth"
+authServiceAccessKey = "randomkeyforBROBRIDGEgravityHaHA"
