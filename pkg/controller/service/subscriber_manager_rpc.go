@@ -18,7 +18,7 @@ func (sm *SubscriberManager) initialize_rpc() error {
 
 	// Initializing authentication middleware
 	m := middleware.NewMiddleware(map[string]interface{}{
-		"Authentication": middleware.Authentication{
+		"Authentication": &middleware.Authentication{
 			Enabled: sm.requiredAuth,
 			Keyring: sm.controller.keyring,
 		},

@@ -16,7 +16,7 @@ func (auth *Authentication) InitializeRPC() error {
 
 	// Initializing authentication middleware
 	m := middleware.NewMiddleware(map[string]interface{}{
-		"Authentication": middleware.Authentication{
+		"Authentication": &middleware.Authentication{
 			Enabled: true,
 			Keyring: auth.controller.keyring,
 		},
