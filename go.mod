@@ -16,6 +16,7 @@ require (
 	golang.org/x/net v0.0.0-20210226172049-e18ecbb05110
 	google.golang.org/grpc v1.32.0
 	google.golang.org/grpc/examples v0.0.0-20200807164945-d3e3e7a46f57 // indirect
+	google.golang.org/protobuf v1.26.0
 )
 
 replace github.com/BrobridgeOrg/gravity-api => ../gravity-api

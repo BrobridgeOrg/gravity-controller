@@ -57,13 +57,6 @@ func (controller *Controller) Init() error {
 
 	controller.clientID = fmt.Sprintf("gravity_controller-%s", host)
 
-	// Initializing authentication
-	err = controller.auth.Initialize(controller)
-	if err != nil {
-		log.Error(err)
-		return err
-	}
-
 	// Initializing store
 	err = controller.initializeStore()
 	if err != nil {
@@ -78,6 +71,13 @@ func (controller *Controller) Init() error {
 		timer := time.NewTimer(1000 * time.Millisecond)
 		<-timer.C
 		return controller.Init()
+	}
+
+	// Initializing authentication
+	err = controller.auth.Initialize(controller)
+	if err != nil {
+		log.Error(err)
+		return err
 	}
 
 	// Initializing adapter manager

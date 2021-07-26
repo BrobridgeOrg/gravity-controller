@@ -6,6 +6,7 @@ import (
 	"github.com/BrobridgeOrg/broc"
 	packet_pb "github.com/BrobridgeOrg/gravity-api/packet"
 	subscriber_manager_pb "github.com/BrobridgeOrg/gravity-api/service/subscriber_manager"
+	"github.com/BrobridgeOrg/gravity-controller/pkg/controller/service/middleware"
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes"
 	log "github.com/sirupsen/logrus"
@@ -15,89 +16,30 @@ func (sm *SubscriberManager) initialize_rpc() error {
 
 	log.Info("Initializing RPC Handlers for SubscriberManager")
 
+	// Initializing authentication middleware
+	m := middleware.NewMiddleware(map[string]interface{}{
+		"Authentication": middleware.Authentication{
+			Enabled: sm.requiredAuth,
+			Keyring: sm.controller.keyring,
+		},
+	})
+
 	// Initializing RPC engine to handle requests
 	sm.rpcEngine = broc.NewBroc(sm.controller.gravityClient.GetConnection())
-	sm.rpcEngine.Use(sm.rpc_packetHandler)
+	sm.rpcEngine.Use(m.PacketHandler)
 	sm.rpcEngine.SetPrefix(fmt.Sprintf("%s.", sm.controller.domain))
 
 	// Register methods
 	sm.rpcEngine.Register("subscriber_manager.registerSubscriber", sm.rpc_registerSubscriber)
-	sm.rpcEngine.Register("subscriber_manager.unregisterSubscriber", sm.rpc_requiredAuth(), sm.rpc_unregisterSubscriber)
-	sm.rpcEngine.Register("subscriber_manager.healthCheck", sm.rpc_requiredAuth(), sm.rpc_healthCheck)
+	sm.rpcEngine.Register("subscriber_manager.unregisterSubscriber", m.RequiredAuth(), sm.rpc_unregisterSubscriber)
+	sm.rpcEngine.Register("subscriber_manager.healthCheck", m.RequiredAuth(), sm.rpc_healthCheck)
 	sm.rpcEngine.Register("subscriber_manager.getSubscribers",
-		sm.rpc_requiredAuth("SYSTEM", "ADMIN", "SUBSCRIBER_MANAGER_ADMIN"),
+		m.RequiredAuth("SYSTEM", "ADMIN", "SUBSCRIBER_MANAGER_ADMIN"),
 		sm.rpc_getSubscribers,
 	)
-	sm.rpcEngine.Register("subscriber_manager.subscribeToCollections", sm.rpc_requiredAuth(), sm.rpc_subscribeToCollections)
+	sm.rpcEngine.Register("subscriber_manager.subscribeToCollections", m.RequiredAuth(), sm.rpc_subscribeToCollections)
 
 	return sm.rpcEngine.Apply()
-}
-
-func (sm *SubscriberManager) rpc_requiredAuth(rules ...string) broc.Handler {
-
-	return func(ctx *broc.Context) (interface{}, error) {
-
-		if !sm.requiredAuth {
-			return ctx.Next()
-		}
-
-		packet := ctx.Get("request").(*packet_pb.Packet)
-
-		// Using appID to find key info
-		keyInfo := sm.controller.keyring.Get(packet.AppID)
-		if keyInfo == nil {
-			// No such app ID
-			return nil, nil
-		}
-
-		// check permissions
-		if len(rules) > 0 {
-			hasPerm := false
-			for _, rule := range rules {
-				hasPerm = keyInfo.Permission().Check(rule)
-			}
-
-			// No permission
-			if !hasPerm {
-				return nil, nil
-			}
-		}
-
-		// Decrypt
-		data, err := keyInfo.Encryption().Decrypt(packet.Payload)
-		if err != nil {
-			return nil, nil
-		}
-
-		// pass decrypted payload to next handler
-		packet.Payload = data
-		returnedData, err := ctx.Next()
-		if err != nil {
-			return nil, err
-		}
-
-		// Encrypt
-		encrypted, err := keyInfo.Encryption().Encrypt(returnedData.([]byte))
-		if err != nil {
-			return nil, nil
-		}
-
-		return encrypted, nil
-	}
-}
-
-func (sm *SubscriberManager) rpc_packetHandler(ctx *broc.Context) (interface{}, error) {
-
-	var packet packet_pb.Packet
-	err := proto.Unmarshal(ctx.Get("request").([]byte), &packet)
-	if err != nil {
-		// invalid request
-		return nil, nil
-	}
-
-	ctx.Set("request", &packet)
-
-	return ctx.Next()
 }
 
 func (sm *SubscriberManager) rpc_registerSubscriber(ctx *broc.Context) (returnedValue interface{}, err error) {

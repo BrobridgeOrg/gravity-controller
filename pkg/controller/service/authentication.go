@@ -1,14 +1,17 @@
 package controller
 
 import (
+	"github.com/BrobridgeOrg/broc"
 	authenticator "github.com/BrobridgeOrg/gravity-sdk/authenticator"
 	"github.com/spf13/viper"
 )
 
 type Authentication struct {
+	controller    *Controller
 	channel       string
 	accessKey     string
 	authenticator *authenticator.Authenticator
+	rpcEngine     *broc.Broc
 }
 
 func NewAuthentication() *Authentication {
@@ -16,6 +19,8 @@ func NewAuthentication() *Authentication {
 }
 
 func (auth *Authentication) Initialize(controller *Controller) error {
+
+	auth.controller = controller
 
 	// channel for authentication
 	auth.channel = viper.GetString("auth_service.channel")
@@ -27,5 +32,6 @@ func (auth *Authentication) Initialize(controller *Controller) error {
 	authOpts.AccessKey = viper.GetString("auth_service.accessKey")
 	auth.authenticator = authenticator.NewAuthenticatorWithClient(controller.gravityClient, authOpts)
 
-	return nil
+	// Initializing RPC handler
+	return auth.InitializeRPC()
 }
