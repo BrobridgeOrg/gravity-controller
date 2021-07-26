@@ -1,7 +1,6 @@
 package controller
 
 import (
-	"encoding/json"
 	"fmt"
 
 	"github.com/BrobridgeOrg/broc"
@@ -36,7 +35,11 @@ func (auth *Authentication) InitializeRPC() error {
 
 	// Register methods
 	auth.rpcEngine.Register("createEntity", auth.rpc_createEntity)
+	auth.rpcEngine.Register("updateEntity", auth.rpc_updateEntity)
 	auth.rpcEngine.Register("deleteEntity", auth.rpc_deleteEntity)
+	auth.rpcEngine.Register("getEntity", auth.rpc_getEntity)
+	auth.rpcEngine.Register("updateEntityKey", auth.rpc_updateEntityKey)
+	auth.rpcEngine.Register("getEntities", auth.rpc_getEntities)
 
 	return nil
 }
@@ -66,32 +69,62 @@ func (auth *Authentication) rpc_createEntity(ctx *broc.Context) (returnedValue i
 	}
 
 	// Prepare new entity
-	entity := &authenticator.Entity{
-		AppID:      req.Entity.AppID,
-		AppName:    req.Entity.AppName,
-		AccessKey:  req.Entity.Key,
-		Properties: make(map[string]interface{}),
-	}
+	entity, err := authenticator.ParseEntityProto(req.Entity)
+	if err != nil {
+		log.Error(err)
 
-	// Property is not empty
-	if len(req.Entity.Properties) > 0 {
-		var props map[string]interface{}
-		err = json.Unmarshal(req.Entity.Properties, &props)
-		if err != nil {
-			log.Error(err)
-
-			reply.Success = false
-			reply.Reason = err.Error()
-			return
-		}
-
-		// Append properties
-		for k, v := range props {
-			entity.Properties[k] = v
-		}
+		reply.Success = false
+		reply.Reason = "UnknownParameter"
+		return
 	}
 
 	err = auth.authenticator.CreateEntity(entity)
+	if err != nil {
+		log.Error(err)
+
+		reply.Success = false
+		reply.Reason = err.Error()
+		return
+	}
+
+	return
+}
+
+func (auth *Authentication) rpc_updateEntity(ctx *broc.Context) (returnedValue interface{}, err error) {
+
+	// Reply
+	reply := auth_pb.UpdateEntityReply{
+		Success: true,
+	}
+	defer func() {
+		data, e := proto.Marshal(&reply)
+		returnedValue = data
+		err = e
+	}()
+
+	// Parsing request data
+	var req auth_pb.UpdateEntityRequest
+	packet := ctx.Get("request").(*packet_pb.Packet)
+	err = proto.Unmarshal(packet.Payload, &req)
+	if err != nil {
+		log.Error(err)
+
+		reply.Success = false
+		reply.Reason = "UnknownParameter"
+		return
+	}
+
+	// Prepare entity
+	entity, err := authenticator.ParseEntityProto(req.Entity)
+	if err != nil {
+		log.Error(err)
+
+		reply.Success = false
+		reply.Reason = "UnknownParameter"
+		return
+	}
+
+	err = auth.authenticator.UpdateEntity(entity)
 	if err != nil {
 		log.Error(err)
 
@@ -134,6 +167,123 @@ func (auth *Authentication) rpc_deleteEntity(ctx *broc.Context) (returnedValue i
 		reply.Success = false
 		reply.Reason = err.Error()
 		return
+	}
+
+	return
+}
+
+func (auth *Authentication) rpc_getEntity(ctx *broc.Context) (returnedValue interface{}, err error) {
+
+	// Reply
+	reply := auth_pb.GetEntityReply{
+		Success: true,
+	}
+	defer func() {
+		data, e := proto.Marshal(&reply)
+		returnedValue = data
+		err = e
+	}()
+
+	// Parsing request data
+	var req auth_pb.GetEntityRequest
+	packet := ctx.Get("request").(*packet_pb.Packet)
+	err = proto.Unmarshal(packet.Payload, &req)
+	if err != nil {
+		log.Error(err)
+
+		reply.Success = false
+		reply.Reason = "UnknownParameter"
+		return
+	}
+
+	entity, err := auth.authenticator.GetEntity(req.AppID)
+	if err != nil {
+		log.Error(err)
+
+		reply.Success = false
+		reply.Reason = err.Error()
+		return
+	}
+
+	reply.Entity = authenticator.ConvertEntityToProto(entity)
+
+	return
+}
+
+func (auth *Authentication) rpc_updateEntityKey(ctx *broc.Context) (returnedValue interface{}, err error) {
+
+	// Reply
+	reply := auth_pb.UpdateEntityKeyReply{
+		Success: true,
+	}
+	defer func() {
+		data, e := proto.Marshal(&reply)
+		returnedValue = data
+		err = e
+	}()
+
+	// Parsing request data
+	var req auth_pb.UpdateEntityKeyRequest
+	packet := ctx.Get("request").(*packet_pb.Packet)
+	err = proto.Unmarshal(packet.Payload, &req)
+	if err != nil {
+		log.Error(err)
+
+		reply.Success = false
+		reply.Reason = "UnknownParameter"
+		return
+	}
+
+	err = auth.authenticator.UpdateEntityKey(req.AppID, req.Key)
+	if err != nil {
+		log.Error(err)
+
+		reply.Success = false
+		reply.Reason = err.Error()
+		return
+	}
+
+	return
+}
+
+func (auth *Authentication) rpc_getEntities(ctx *broc.Context) (returnedValue interface{}, err error) {
+
+	// Reply
+	reply := auth_pb.GetEntitiesReply{
+		Success: true,
+	}
+	defer func() {
+		data, e := proto.Marshal(&reply)
+		returnedValue = data
+		err = e
+	}()
+
+	// Parsing request data
+	var req auth_pb.GetEntitiesRequest
+	packet := ctx.Get("request").(*packet_pb.Packet)
+	err = proto.Unmarshal(packet.Payload, &req)
+	if err != nil {
+		log.Error(err)
+
+		reply.Success = false
+		reply.Reason = "UnknownParameter"
+		return
+	}
+
+	entities, total, err := auth.authenticator.GetEntities(req.StartID, req.Count)
+	if err != nil {
+		log.Error(err)
+
+		reply.Success = false
+		reply.Reason = err.Error()
+		return
+	}
+
+	reply.Total = total
+
+	reply.Entities = make([]*auth_pb.Entity, len(entities))
+	for i, entity := range entities {
+		reply.Entities[i] = authenticator.ConvertEntityToProto(entity)
 	}
 
 	return
