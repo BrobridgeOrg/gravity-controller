@@ -10,5 +10,7 @@ storePath = "./datastore"
 
 [subscriber_manager]
 requiredAuth = false
-authServiceChannel = "gravity.auth"
-authServiceAccessKey = "randomkeyforBROBRIDGEgravityHaHA"
+
+[auth_service]
+channel = "gravity.auth"
+accessKey = "randomkeyforBROBRIDGEgravityHaHA"

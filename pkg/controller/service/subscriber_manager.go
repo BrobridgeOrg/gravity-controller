@@ -11,20 +11,17 @@ import (
 	packet_pb "github.com/BrobridgeOrg/gravity-api/packet"
 	subscriber_manager_pb "github.com/BrobridgeOrg/gravity-api/service/subscriber_manager"
 	synchronizer_pb "github.com/BrobridgeOrg/gravity-api/service/synchronizer"
-	authenticator "github.com/BrobridgeOrg/gravity-sdk/authenticator"
 	"github.com/golang/protobuf/proto"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 )
 
 type SubscriberManager struct {
-	controller         *Controller
-	requiredAuth       bool
-	authServiceChannel string
-	authenticator      *authenticator.Authenticator
-	rpcEngine          *broc.Broc
-	subscribers        map[string]*Subscriber
-	mutex              sync.RWMutex
+	controller   *Controller
+	requiredAuth bool
+	rpcEngine    *broc.Broc
+	subscribers  map[string]*Subscriber
+	mutex        sync.RWMutex
 }
 
 func NewSubscriberManager(controller *Controller) *SubscriberManager {
@@ -40,11 +37,6 @@ func (sm *SubscriberManager) Initialize() error {
 	// Load configurations
 	viper.SetDefault("subscriber_manager.requiredAuth", false)
 	sm.requiredAuth = viper.GetBool("subscriber_manager.requiredAuth")
-
-	// channel for authentication
-	defChannel := fmt.Sprintf("%s.auth", sm.controller.domain)
-	viper.SetDefault("subscriber_manager.authServiceChannel", defChannel)
-	sm.authServiceChannel = viper.GetString("subscriber_manager.authServiceChannel")
 
 	// Restore states from store
 	store, err := sm.controller.store.GetEngine().GetStore("gravity_subscriber_manager")
@@ -101,14 +93,6 @@ func (sm *SubscriberManager) Initialize() error {
 
 		return true
 	})
-
-	// Initializing authenticator
-	authOpts := authenticator.NewOptions()
-
-	if sm.requiredAuth {
-		authOpts.AccessKey = viper.GetString("subscriber_manager.authServiceKey")
-		sm.authenticator = authenticator.NewAuthenticatorWithClient(sm.controller.gravityClient, authOpts)
-	}
 
 	err = sm.initialize_rpc()
 	if err != nil {
@@ -218,7 +202,7 @@ func (sm *SubscriberManager) Register(subscriberType subscriber_manager_pb.Subsc
 	accessKey := ""
 
 	if sm.requiredAuth {
-		entity, err := sm.authenticator.Authenticate(appID, token)
+		entity, err := sm.controller.auth.authenticator.Authenticate(appID, token)
 		if err != nil {
 			return err
 		}

@@ -19,6 +19,7 @@ type Controller struct {
 	gravityClient       *core.Client
 	domain              string
 	clientID            string
+	auth                *Authentication
 	keyring             *keyring.Keyring
 	adapterManager      *AdapterManager
 	synchronizerManager *SynchronizerManager
@@ -32,6 +33,7 @@ func NewController(a app.App) *Controller {
 		app:           a,
 		gravityClient: core.NewClient(),
 		keyring:       keyring.NewKeyring(),
+		auth:          NewAuthentication(),
 	}
 
 	controller.adapterManager = NewAdapterManager(controller)
@@ -54,6 +56,13 @@ func (controller *Controller) Init() error {
 	host = strings.ReplaceAll(host, ".", "_")
 
 	controller.clientID = fmt.Sprintf("gravity_controller-%s", host)
+
+	// Initializing authentication
+	err = controller.auth.Initialize(controller)
+	if err != nil {
+		log.Error(err)
+		return err
+	}
 
 	// Initializing store
 	err = controller.initializeStore()
