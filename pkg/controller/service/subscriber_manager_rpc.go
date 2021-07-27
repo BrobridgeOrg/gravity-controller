@@ -12,14 +12,14 @@ import (
 	log "github.com/sirupsen/logrus"
 )
 
-func (sm *SubscriberManager) initialize_rpc() error {
+func (sm *SubscriberManager) initializeRPC() error {
 
 	log.Info("Initializing RPC Handlers for SubscriberManager")
 
 	// Initializing authentication middleware
 	m := middleware.NewMiddleware(map[string]interface{}{
 		"Authentication": &middleware.Authentication{
-			Enabled: sm.requiredAuth,
+			Enabled: true,
 			Keyring: sm.controller.keyring,
 		},
 	})
@@ -27,17 +27,17 @@ func (sm *SubscriberManager) initialize_rpc() error {
 	// Initializing RPC engine to handle requests
 	sm.rpcEngine = broc.NewBroc(sm.controller.gravityClient.GetConnection())
 	sm.rpcEngine.Use(m.PacketHandler)
-	sm.rpcEngine.SetPrefix(fmt.Sprintf("%s.", sm.controller.domain))
+	sm.rpcEngine.SetPrefix(fmt.Sprintf("%s.subscriber_manager.", sm.controller.domain))
 
 	// Register methods
-	sm.rpcEngine.Register("subscriber_manager.registerSubscriber", sm.rpc_registerSubscriber)
-	sm.rpcEngine.Register("subscriber_manager.unregisterSubscriber", m.RequiredAuth(), sm.rpc_unregisterSubscriber)
-	sm.rpcEngine.Register("subscriber_manager.healthCheck", m.RequiredAuth(), sm.rpc_healthCheck)
-	sm.rpcEngine.Register("subscriber_manager.getSubscribers",
+	sm.rpcEngine.Register("registerSubscriber", sm.rpc_registerSubscriber)
+	sm.rpcEngine.Register("unregisterSubscriber", m.RequiredAuth(), sm.rpc_unregisterSubscriber)
+	sm.rpcEngine.Register("healthCheck", m.RequiredAuth(), sm.rpc_healthCheck)
+	sm.rpcEngine.Register("getSubscribers",
 		m.RequiredAuth("SYSTEM", "ADMIN", "SUBSCRIBER_MANAGER_ADMIN"),
 		sm.rpc_getSubscribers,
 	)
-	sm.rpcEngine.Register("subscriber_manager.subscribeToCollections", m.RequiredAuth(), sm.rpc_subscribeToCollections)
+	sm.rpcEngine.Register("subscribeToCollections", m.RequiredAuth(), sm.rpc_subscribeToCollections)
 
 	return sm.rpcEngine.Apply()
 }

@@ -4,59 +4,61 @@ import (
 	"fmt"
 
 	"github.com/golang/protobuf/proto"
-	"github.com/nats-io/nats.go"
 	log "github.com/sirupsen/logrus"
 
+	"github.com/BrobridgeOrg/broc"
+	packet_pb "github.com/BrobridgeOrg/gravity-api/packet"
 	pb "github.com/BrobridgeOrg/gravity-api/service/pipeline_manager"
+	"github.com/BrobridgeOrg/gravity-controller/pkg/controller/service/middleware"
 )
 
-func (pm *PipelineManager) initialize_rpc() error {
+func (pm *PipelineManager) initializeRPC() error {
 
-	err := pm.initialize_rpc_get_count()
-	if err != nil {
-		return err
-	}
+	// Initializing authentication middleware
+	m := middleware.NewMiddleware(map[string]interface{}{
+		"Authentication": &middleware.Authentication{
+			Enabled: true,
+			Keyring: pm.controller.keyring,
+		},
+	})
 
-	return nil
+	// Initializing RPC engine to handle requests
+	pm.rpcEngine = broc.NewBroc(pm.controller.gravityClient.GetConnection())
+	pm.rpcEngine.Use(m.PacketHandler)
+	pm.rpcEngine.SetPrefix(fmt.Sprintf("%s.pipeline_manager.", pm.controller.domain))
+
+	// Register methods
+	pm.rpcEngine.Register("getCount", m.RequiredAuth("SYSTEM", "SUBSCRIBER"), pm.rpc_getCount)
+
+	return pm.rpcEngine.Apply()
 }
 
-func (pm *PipelineManager) initialize_rpc_get_count() error {
+func (pm *PipelineManager) rpc_getCount(ctx *broc.Context) (returnedValue interface{}, err error) {
 
-	connection := pm.controller.gravityClient.GetConnection()
-	channel := fmt.Sprintf("%s.pipeline_manager.getCount", pm.controller.domain)
+	// Reply
+	reply := pb.GetPipelineCountReply{
+		Success: true,
+	}
+	defer func() {
+		data, e := proto.Marshal(&reply)
+		returnedValue = data
+		err = e
+	}()
 
-	log.WithFields(log.Fields{
-		"name": channel,
-	}).Info("Subscribing to channel")
-
-	_, err := connection.Subscribe(channel, func(m *nats.Msg) {
-
-		// Reply
-		reply := pb.GetPipelineCountReply{
-			Success: true,
-		}
-		defer func() {
-			data, _ := proto.Marshal(&reply)
-			m.Respond(data)
-		}()
-
-		// Parsing request data
-		var req pb.GetPipelineCountRequest
-		err := proto.Unmarshal(m.Data, &req)
-		if err != nil {
-			log.Error(err)
-
-			reply.Success = false
-			reply.Reason = "UnknownParameter"
-			return
-		}
-
-		// Start transmitter on all synchronizer nodes
-		reply.Count = pm.controller.GetPipelineCount()
-	})
+	// Parsing request data
+	var req pb.GetPipelineCountRequest
+	packet := ctx.Get("request").(*packet_pb.Packet)
+	err = proto.Unmarshal(packet.Payload, &req)
 	if err != nil {
-		return err
+		log.Error(err)
+
+		reply.Success = false
+		reply.Reason = "UnknownParameter"
+		return
 	}
 
-	return nil
+	// Start transmitter on all synchronizer nodes
+	reply.Count = pm.controller.GetPipelineCount()
+
+	return
 }

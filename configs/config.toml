@@ -9,8 +9,9 @@ pipelineCount = 4
 storePath = "./datastore"
 
 [subscriber_manager]
-requiredAuth = false
+allowAnonymous = true
 
 [auth_service]
+enabled = false
 channel = "gravity.auth"
 accessKey = "randomkeyforBROBRIDGEgravityHaHA"

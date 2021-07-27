@@ -1,6 +1,8 @@
 package middleware
 
 import (
+	"errors"
+
 	"github.com/BrobridgeOrg/broc"
 	packet_pb "github.com/BrobridgeOrg/gravity-api/packet"
 	"github.com/BrobridgeOrg/gravity-sdk/core/keyring"
@@ -42,7 +44,9 @@ func (auth *Authentication) RequiredAuth(rules ...string) broc.Handler {
 		if len(rules) > 0 {
 			hasPerm := false
 			for _, rule := range rules {
-				hasPerm = keyInfo.Permission().Check(rule)
+				if keyInfo.Permission().Check(rule) {
+					hasPerm = true
+				}
 			}
 
 			// No permission
@@ -54,7 +58,7 @@ func (auth *Authentication) RequiredAuth(rules ...string) broc.Handler {
 		// Decrypt
 		data, err := keyInfo.Encryption().Decrypt(packet.Payload)
 		if err != nil {
-			return nil, nil
+			return nil, errors.New("InvalidKey")
 		}
 
 		// pass decrypted payload to next handler

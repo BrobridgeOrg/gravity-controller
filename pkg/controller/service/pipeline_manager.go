@@ -5,12 +5,14 @@ import (
 	"fmt"
 	"time"
 
+	"github.com/BrobridgeOrg/broc"
 	log "github.com/sirupsen/logrus"
 	"github.com/spf13/viper"
 )
 
 type PipelineManager struct {
 	controller   *Controller
+	rpcEngine    *broc.Broc
 	pipelines    map[uint64]*Pipeline
 	pendingTasks chan *Task
 }
@@ -44,7 +46,7 @@ func (pm *PipelineManager) Initialize() error {
 	go pm.watchTasks()
 
 	// Initializing RPC
-	err := pm.initialize_rpc()
+	err := pm.initializeRPC()
 	if err != nil {
 		return err
 	}

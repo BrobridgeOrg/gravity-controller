@@ -3,179 +3,151 @@ package controller
 import (
 	"fmt"
 
+	"github.com/BrobridgeOrg/broc"
+	packet_pb "github.com/BrobridgeOrg/gravity-api/packet"
 	synchronizer_manager_pb "github.com/BrobridgeOrg/gravity-api/service/synchronizer_manager"
+	"github.com/BrobridgeOrg/gravity-controller/pkg/controller/service/middleware"
 	"github.com/golang/protobuf/proto"
-	"github.com/nats-io/nats.go"
 	log "github.com/sirupsen/logrus"
 )
 
-func (sm *SynchronizerManager) initialize_rpc() error {
+func (sm *SynchronizerManager) initializeRPC() error {
 
-	err := sm.initialize_rpc_register()
-	if err != nil {
-		return err
-	}
+	// Initializing authentication middleware
+	m := middleware.NewMiddleware(map[string]interface{}{
+		"Authentication": &middleware.Authentication{
+			Enabled: true,
+			Keyring: sm.controller.keyring,
+		},
+	})
 
-	err = sm.initialize_rpc_unregister()
-	if err != nil {
-		return err
-	}
+	// Initializing RPC engine to handle requests
+	sm.rpcEngine = broc.NewBroc(sm.controller.gravityClient.GetConnection())
+	sm.rpcEngine.Use(m.PacketHandler)
+	sm.rpcEngine.SetPrefix(fmt.Sprintf("%s.synchronizer_manager.", sm.controller.domain))
 
-	err = sm.initialize_rpc_get_pipelines()
-	if err != nil {
-		return err
-	}
+	// Register methods
+	sm.rpcEngine.Register("register", m.RequiredAuth("SYSTEM"), sm.rpc_register)
+	sm.rpcEngine.Register("unregister", m.RequiredAuth("SYSTEM"), sm.rpc_unregister)
+	sm.rpcEngine.Register("getPipelines", m.RequiredAuth("SYSTEM"), sm.rpc_getPipelines)
 
-	return nil
+	return sm.rpcEngine.Apply()
 }
 
-func (sm *SynchronizerManager) initialize_rpc_register() error {
+func (sm *SynchronizerManager) rpc_register(ctx *broc.Context) (returnedValue interface{}, err error) {
 
-	connection := sm.controller.gravityClient.GetConnection()
-	channel := fmt.Sprintf("%s.synchronizer_manager.register", sm.controller.domain)
+	// Reply
+	reply := synchronizer_manager_pb.RegisterSynchronizerReply{
+		Success: true,
+	}
+	defer func() {
+		data, e := proto.Marshal(&reply)
+		returnedValue = data
+		err = e
+	}()
+
+	// Parsing request data
+	var req synchronizer_manager_pb.RegisterSynchronizerRequest
+	packet := ctx.Get("request").(*packet_pb.Packet)
+	err = proto.Unmarshal(packet.Payload, &req)
+	if err != nil {
+		log.Error(err)
+
+		reply.Success = false
+		reply.Reason = "UnknownParameter"
+		return
+	}
+
+	// Register
+	err = sm.Register(req.SynchronizerID)
+	if err != nil {
+		log.Error(err)
+
+		reply.Success = false
+		reply.Reason = err.Error()
+		return
+	}
 
 	log.WithFields(log.Fields{
-		"name": channel,
-	}).Info("Subscribing to RPC channel")
+		"id": req.SynchronizerID,
+	}).Info("Registered synchronizer")
 
-	_, err := connection.Subscribe(channel, func(m *nats.Msg) {
+	return
+}
 
-		// Reply
-		reply := synchronizer_manager_pb.RegisterSynchronizerReply{
-			Success: true,
-		}
-		defer func() {
-			data, _ := proto.Marshal(&reply)
-			m.Respond(data)
-		}()
+func (sm *SynchronizerManager) rpc_unregister(ctx *broc.Context) (returnedValue interface{}, err error) {
 
-		// Parsing request data
-		var req synchronizer_manager_pb.RegisterSynchronizerRequest
-		err := proto.Unmarshal(m.Data, &req)
-		if err != nil {
-			log.Error(err)
+	// Reply
+	reply := synchronizer_manager_pb.UnregisterSynchronizerReply{
+		Success: true,
+	}
+	defer func() {
+		data, e := proto.Marshal(&reply)
+		returnedValue = data
+		err = e
+	}()
 
-			reply.Success = false
-			reply.Reason = "UnknownParameter"
-			return
-		}
+	// Parsing request data
+	var req synchronizer_manager_pb.UnregisterSynchronizerRequest
+	packet := ctx.Get("request").(*packet_pb.Packet)
+	err = proto.Unmarshal(packet.Payload, &req)
+	if err != nil {
+		log.Error(err)
 
-		// Register
-		err = sm.Register(req.SynchronizerID)
-		if err != nil {
-			log.Error(err)
+		reply.Success = false
+		reply.Reason = "UnknownParameter"
+		return
+	}
 
-			reply.Success = false
-			reply.Reason = err.Error()
-			return
-		}
+	// Unregister
+	err = sm.Unregister(req.SynchronizerID)
+	if err != nil {
+		log.Error(err)
 
+		reply.Success = false
+		reply.Reason = err.Error()
+		return
+	}
+
+	return
+}
+
+func (sm *SynchronizerManager) rpc_getPipelines(ctx *broc.Context) (returnedValue interface{}, err error) {
+
+	// Reply
+	reply := synchronizer_manager_pb.GetPipelinesReply{
+		Success: true,
+	}
+	defer func() {
+		data, e := proto.Marshal(&reply)
+		returnedValue = data
+		err = e
+	}()
+
+	// Parsing request data
+	var req synchronizer_manager_pb.GetPipelinesRequest
+	packet := ctx.Get("request").(*packet_pb.Packet)
+	err = proto.Unmarshal(packet.Payload, &req)
+	if err != nil {
+		log.Error(err)
+
+		reply.Success = false
+		reply.Reason = "UnknownParameter"
+		return
+	}
+
+	// Getting specific synchronizer
+	synchronizer := sm.GetSynchronizer(req.SynchronizerID)
+	if synchronizer == nil {
 		log.WithFields(log.Fields{
 			"id": req.SynchronizerID,
-		}).Info("Registered synchronizer")
-	})
-	if err != nil {
-		return err
+		}).Error("Not found synchronizer")
+		reply.Success = false
+		reply.Reason = "NotFound"
+		return
 	}
 
-	return nil
-}
+	reply.Pipelines = synchronizer.pipelines
 
-func (sm *SynchronizerManager) initialize_rpc_unregister() error {
-
-	connection := sm.controller.gravityClient.GetConnection()
-	channel := fmt.Sprintf("%s.synchronizer_manager.unregister", sm.controller.domain)
-
-	log.WithFields(log.Fields{
-		"name": channel,
-	}).Info("Subscribing to RPC channel")
-
-	_, err := connection.Subscribe(channel, func(m *nats.Msg) {
-
-		// Reply
-		reply := synchronizer_manager_pb.UnregisterSynchronizerReply{
-			Success: true,
-		}
-		defer func() {
-			data, _ := proto.Marshal(&reply)
-			m.Respond(data)
-		}()
-
-		// Parsing request data
-		var req synchronizer_manager_pb.UnregisterSynchronizerRequest
-		err := proto.Unmarshal(m.Data, &req)
-		if err != nil {
-			log.Error(err)
-
-			reply.Success = false
-			reply.Reason = "UnknownParameter"
-			return
-		}
-
-		// Unregister
-		err = sm.Unregister(req.SynchronizerID)
-		if err != nil {
-			log.Error(err)
-
-			reply.Success = false
-			reply.Reason = err.Error()
-			return
-		}
-	})
-	if err != nil {
-		return err
-	}
-
-	return nil
-}
-
-func (sm *SynchronizerManager) initialize_rpc_get_pipelines() error {
-
-	connection := sm.controller.gravityClient.GetConnection()
-	channel := fmt.Sprintf("%s.synchronizer_manager.getPipelines", sm.controller.domain)
-
-	log.WithFields(log.Fields{
-		"name": channel,
-	}).Info("Subscribing to RPC channel")
-
-	_, err := connection.Subscribe(channel, func(m *nats.Msg) {
-
-		// Reply
-		reply := synchronizer_manager_pb.GetPipelinesReply{
-			Success: true,
-		}
-		defer func() {
-			data, _ := proto.Marshal(&reply)
-			m.Respond(data)
-		}()
-
-		// Parsing request data
-		var req synchronizer_manager_pb.GetPipelinesRequest
-		err := proto.Unmarshal(m.Data, &req)
-		if err != nil {
-			log.Error(err)
-
-			reply.Success = false
-			reply.Reason = "UnknownParameter"
-			return
-		}
-
-		// Getting specific synchronizer
-		synchronizer := sm.GetSynchronizer(req.SynchronizerID)
-		if synchronizer == nil {
-			log.WithFields(log.Fields{
-				"id": req.SynchronizerID,
-			}).Error("Not found synchronizer")
-			reply.Success = false
-			reply.Reason = "NotFound"
-			return
-		}
-
-		reply.Pipelines = synchronizer.pipelines
-	})
-	if err != nil {
-		return err
-	}
-
-	return nil
+	return
 }

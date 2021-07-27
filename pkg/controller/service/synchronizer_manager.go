@@ -4,12 +4,14 @@ import (
 	"encoding/json"
 	"sync"
 
+	"github.com/BrobridgeOrg/broc"
 	log "github.com/sirupsen/logrus"
 )
 
 type SynchronizerManager struct {
 	controller    *Controller
 	synchronizers map[string]*Synchronizer
+	rpcEngine     *broc.Broc
 	mutex         sync.RWMutex
 }
 
@@ -70,7 +72,7 @@ func (sm *SynchronizerManager) Initialize() error {
 		return true
 	})
 
-	err = sm.initialize_rpc()
+	err = sm.initializeRPC()
 	if err != nil {
 		return err
 	}

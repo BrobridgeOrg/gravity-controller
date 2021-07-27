@@ -7,11 +7,12 @@ import (
 )
 
 type Authentication struct {
-	controller    *Controller
-	channel       string
-	accessKey     string
-	authenticator *authenticator.Authenticator
-	rpcEngine     *broc.Broc
+	controller         *Controller
+	enabledAuthService bool
+	channel            string
+	accessKey          string
+	authenticator      *authenticator.Authenticator
+	rpcEngine          *broc.Broc
 }
 
 func NewAuthentication() *Authentication {
@@ -21,6 +22,9 @@ func NewAuthentication() *Authentication {
 func (auth *Authentication) Initialize(controller *Controller) error {
 
 	auth.controller = controller
+
+	viper.SetDefault("auth_service.enabled", false)
+	auth.enabledAuthService = viper.GetBool("auth_service.enabled")
 
 	// channel for authentication
 	auth.channel = viper.GetString("auth_service.channel")

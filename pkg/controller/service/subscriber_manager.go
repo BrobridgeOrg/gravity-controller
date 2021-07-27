@@ -17,26 +17,30 @@ import (
 )
 
 type SubscriberManager struct {
-	controller   *Controller
-	requiredAuth bool
-	rpcEngine    *broc.Broc
-	subscribers  map[string]*Subscriber
-	mutex        sync.RWMutex
+	controller     *Controller
+	allowAnonymous bool
+	rpcEngine      *broc.Broc
+	subscribers    map[string]*Subscriber
+	mutex          sync.RWMutex
 }
 
 func NewSubscriberManager(controller *Controller) *SubscriberManager {
 	return &SubscriberManager{
-		controller:   controller,
-		requiredAuth: false,
-		subscribers:  make(map[string]*Subscriber),
+		controller:     controller,
+		allowAnonymous: false,
+		subscribers:    make(map[string]*Subscriber),
 	}
 }
 
 func (sm *SubscriberManager) Initialize() error {
 
 	// Load configurations
-	viper.SetDefault("subscriber_manager.requiredAuth", false)
-	sm.requiredAuth = viper.GetBool("subscriber_manager.requiredAuth")
+	viper.SetDefault("subscriber_manager.allowAnonymous", true)
+	sm.allowAnonymous = viper.GetBool("subscriber_manager.allowAnonymous")
+	if sm.allowAnonymous {
+		keyInfo := sm.controller.keyring.Put("anonymous", "")
+		keyInfo.Permission().AddPermissions([]string{"SUBSCRIBER"})
+	}
 
 	// Restore states from store
 	store, err := sm.controller.store.GetEngine().GetStore("gravity_subscriber_manager")
@@ -94,7 +98,7 @@ func (sm *SubscriberManager) Initialize() error {
 		return true
 	})
 
-	err = sm.initialize_rpc()
+	err = sm.initializeRPC()
 	if err != nil {
 		return err
 	}
@@ -157,7 +161,7 @@ func (sm *SubscriberManager) addSubscriber(subscriberType subscriber_manager_pb.
 
 	_, ok := sm.subscribers[subscriberID]
 	if ok {
-		return nil, errors.New("Subscriber ID exists already")
+		return nil, errors.New("Exists")
 	}
 
 	// Create a new subscriber
@@ -201,7 +205,7 @@ func (sm *SubscriberManager) Register(subscriberType subscriber_manager_pb.Subsc
 
 	accessKey := ""
 
-	if sm.requiredAuth {
+	if sm.controller.auth.enabledAuthService {
 		entity, err := sm.controller.auth.authenticator.Authenticate(appID, token)
 		if err != nil {
 			return err
@@ -213,10 +217,22 @@ func (sm *SubscriberManager) Register(subscriberType subscriber_manager_pb.Subsc
 
 		// Add to keyring
 		sm.controller.keyring.Put(entity.AppID, entity.AccessKey)
+	} else if sm.allowAnonymous {
+
+		if appID != "anonymous" {
+			return errors.New("Forbidden")
+		}
 	}
 
 	subscriber, err := sm.addSubscriber(subscriberType, component, subscriberID, name, properties)
 	if err != nil {
+		if err.Error() == "Exists" {
+			log.WithFields(log.Fields{
+				"subscriber": subscriberID,
+			}).Warn("Subscriber exists already")
+			return nil
+		}
+
 		return err
 	}
 
@@ -255,7 +271,7 @@ func (sm *SubscriberManager) Unregister(subscriberID string) error {
 		return nil
 	}
 
-	if sm.requiredAuth {
+	if sm.controller.auth.enabledAuthService {
 		appID := subscriber.properties["auth.appID"].(string)
 		sm.controller.keyring.Unref(appID)
 	}
