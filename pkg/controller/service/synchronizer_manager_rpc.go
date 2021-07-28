@@ -13,6 +13,8 @@ import (
 
 func (sm *SynchronizerManager) initializeRPC() error {
 
+	log.Info("Initializing RPC Handlers for SynchronizerManager")
+
 	// Initializing authentication middleware
 	m := middleware.NewMiddleware(map[string]interface{}{
 		"Authentication": &middleware.Authentication{

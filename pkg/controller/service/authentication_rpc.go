@@ -14,6 +14,8 @@ import (
 
 func (auth *Authentication) InitializeRPC() error {
 
+	log.Info("Initializing RPC Handlers for AuthenticationManager")
+
 	// Initializing authentication middleware
 	m := middleware.NewMiddleware(map[string]interface{}{
 		"Authentication": &middleware.Authentication{
@@ -31,7 +33,7 @@ func (auth *Authentication) InitializeRPC() error {
 		"AUTHENTICATION_MANAGER_ADMIN",
 	))
 
-	auth.rpcEngine.SetPrefix(fmt.Sprintf("%s.authentication_manager", auth.controller.domain))
+	auth.rpcEngine.SetPrefix(fmt.Sprintf("%s.authentication_manager.", auth.controller.domain))
 
 	// Register methods
 	auth.rpcEngine.Register("createEntity", auth.rpc_createEntity)
@@ -41,7 +43,7 @@ func (auth *Authentication) InitializeRPC() error {
 	auth.rpcEngine.Register("updateEntityKey", auth.rpc_updateEntityKey)
 	auth.rpcEngine.Register("getEntities", auth.rpc_getEntities)
 
-	return nil
+	return auth.rpcEngine.Apply()
 }
 
 func (auth *Authentication) rpc_createEntity(ctx *broc.Context) (returnedValue interface{}, err error) {
