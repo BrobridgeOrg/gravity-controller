@@ -6,6 +6,7 @@ import (
 	"github.com/BrobridgeOrg/broc"
 	packet_pb "github.com/BrobridgeOrg/gravity-api/packet"
 	"github.com/BrobridgeOrg/gravity-sdk/core/keyring"
+	"github.com/golang/protobuf/proto"
 )
 
 func (m *Middleware) RequiredAuth(rules ...string) broc.Handler {
@@ -62,10 +63,20 @@ func (auth *Authentication) RequiredAuth(rules ...string) broc.Handler {
 		}
 
 		// pass decrypted payload to next handler
-		packet.Payload = data
+		var payload packet_pb.Payload
+		err = proto.Unmarshal(data, &payload)
+		if err != nil {
+			return nil, errors.New("InvalidPayload")
+		}
+
+		ctx.Set("payload", &payload)
 		returnedData, err := ctx.Next()
 		if err != nil {
 			return nil, err
+		}
+
+		if returnedData == nil {
+			return nil, nil
 		}
 
 		// Encrypt

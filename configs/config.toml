@@ -8,6 +8,9 @@ port = 32803
 pipelineCount = 4
 storePath = "./datastore"
 
+[adapter_manager]
+allowAnonymous = true
+
 [subscriber_manager]
 allowAnonymous = true
 

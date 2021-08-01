@@ -30,10 +30,17 @@ func (synchronizer *Synchronizer) request(eventstoreID string, method string, da
 
 	conn := synchronizer.synchronizerManager.controller.gravityClient.GetConnection()
 
+	// Preparing payload
+	payload := packet_pb.Payload{
+		Data: data,
+	}
+
+	payloadData, _ := proto.Marshal(&payload)
+
 	// Preparing packet
 	packet := packet_pb.Packet{
 		AppID:   "gravity",
-		Payload: data,
+		Payload: payloadData,
 	}
 
 	// find the key for gravity
@@ -44,7 +51,7 @@ func (synchronizer *Synchronizer) request(eventstoreID string, method string, da
 
 	// Encrypt
 	if encrypted {
-		payload, err := keyInfo.Encryption().Encrypt(data)
+		payload, err := keyInfo.Encryption().Encrypt(packet.Payload)
 		if err != nil {
 			return []byte(""), err
 		}

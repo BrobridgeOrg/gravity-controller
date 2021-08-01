@@ -26,6 +26,7 @@ func (auth *Authentication) InitializeRPC() error {
 
 	// Initializing RPC engine to handle requests
 	auth.rpcEngine = broc.NewBroc(auth.controller.gravityClient.GetConnection())
+	auth.rpcEngine.Use(auth.rpc_middleware)
 	auth.rpcEngine.Use(m.PacketHandler)
 	auth.rpcEngine.Use(m.RequiredAuth(
 		"SYSTEM",
@@ -46,6 +47,15 @@ func (auth *Authentication) InitializeRPC() error {
 	return auth.rpcEngine.Apply()
 }
 
+func (auth *Authentication) rpc_middleware(ctx *broc.Context) (returnedValue interface{}, err error) {
+
+	if !auth.enabledAuthService {
+		return nil, nil
+	}
+
+	return ctx.Next()
+}
+
 func (auth *Authentication) rpc_createEntity(ctx *broc.Context) (returnedValue interface{}, err error) {
 
 	// Reply
@@ -60,8 +70,8 @@ func (auth *Authentication) rpc_createEntity(ctx *broc.Context) (returnedValue i
 
 	// Parsing request data
 	var req auth_pb.CreateEntityRequest
-	packet := ctx.Get("request").(*packet_pb.Packet)
-	err = proto.Unmarshal(packet.Payload, &req)
+	payload := ctx.Get("payload").(*packet_pb.Payload)
+	err = proto.Unmarshal(payload.Data, &req)
 	if err != nil {
 		log.Error(err)
 
@@ -106,8 +116,8 @@ func (auth *Authentication) rpc_updateEntity(ctx *broc.Context) (returnedValue i
 
 	// Parsing request data
 	var req auth_pb.UpdateEntityRequest
-	packet := ctx.Get("request").(*packet_pb.Packet)
-	err = proto.Unmarshal(packet.Payload, &req)
+	payload := ctx.Get("payload").(*packet_pb.Payload)
+	err = proto.Unmarshal(payload.Data, &req)
 	if err != nil {
 		log.Error(err)
 
@@ -152,8 +162,8 @@ func (auth *Authentication) rpc_deleteEntity(ctx *broc.Context) (returnedValue i
 
 	// Parsing request data
 	var req auth_pb.DeleteEntityRequest
-	packet := ctx.Get("request").(*packet_pb.Packet)
-	err = proto.Unmarshal(packet.Payload, &req)
+	payload := ctx.Get("payload").(*packet_pb.Payload)
+	err = proto.Unmarshal(payload.Data, &req)
 	if err != nil {
 		log.Error(err)
 
@@ -188,8 +198,8 @@ func (auth *Authentication) rpc_getEntity(ctx *broc.Context) (returnedValue inte
 
 	// Parsing request data
 	var req auth_pb.GetEntityRequest
-	packet := ctx.Get("request").(*packet_pb.Packet)
-	err = proto.Unmarshal(packet.Payload, &req)
+	payload := ctx.Get("payload").(*packet_pb.Payload)
+	err = proto.Unmarshal(payload.Data, &req)
 	if err != nil {
 		log.Error(err)
 
@@ -226,8 +236,8 @@ func (auth *Authentication) rpc_updateEntityKey(ctx *broc.Context) (returnedValu
 
 	// Parsing request data
 	var req auth_pb.UpdateEntityKeyRequest
-	packet := ctx.Get("request").(*packet_pb.Packet)
-	err = proto.Unmarshal(packet.Payload, &req)
+	payload := ctx.Get("payload").(*packet_pb.Payload)
+	err = proto.Unmarshal(payload.Data, &req)
 	if err != nil {
 		log.Error(err)
 
@@ -262,8 +272,8 @@ func (auth *Authentication) rpc_getEntities(ctx *broc.Context) (returnedValue in
 
 	// Parsing request data
 	var req auth_pb.GetEntitiesRequest
-	packet := ctx.Get("request").(*packet_pb.Packet)
-	err = proto.Unmarshal(packet.Payload, &req)
+	payload := ctx.Get("payload").(*packet_pb.Payload)
+	err = proto.Unmarshal(payload.Data, &req)
 	if err != nil {
 		log.Error(err)
 

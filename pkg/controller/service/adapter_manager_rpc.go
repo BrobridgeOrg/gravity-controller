@@ -4,112 +4,121 @@ import (
 	"fmt"
 
 	"github.com/golang/protobuf/proto"
-	"github.com/nats-io/nats.go"
 	log "github.com/sirupsen/logrus"
 
+	"github.com/BrobridgeOrg/broc"
+	packet_pb "github.com/BrobridgeOrg/gravity-api/packet"
 	pb "github.com/BrobridgeOrg/gravity-api/service/adapter_manager"
+	"github.com/BrobridgeOrg/gravity-controller/pkg/controller/service/middleware"
 )
 
 func (am *AdapterManager) initialize_rpc() error {
 
-	err := am.initialize_rpc_register()
-	if err != nil {
-		return err
-	}
+	log.Info("Initializing RPC Handlers for AdapterManager")
 
-	return nil
+	// Initializing authentication middleware
+	m := middleware.NewMiddleware(map[string]interface{}{
+		"Authentication": &middleware.Authentication{
+			Enabled: true,
+			Keyring: am.controller.keyring,
+		},
+	})
+
+	// Initializing RPC engine to handle requests
+	am.rpcEngine = broc.NewBroc(am.controller.gravityClient.GetConnection())
+	am.rpcEngine.Use(m.PacketHandler)
+	am.rpcEngine.SetPrefix(fmt.Sprintf("%s.adapter_manager.", am.controller.domain))
+
+	// Register methods
+	am.rpcEngine.Register("register",
+		m.RequiredAuth("ADAPTER"),
+		am.rpc_register,
+	)
+	am.rpcEngine.Register("unregister",
+		m.RequiredAuth("ADAPTER"),
+		am.rpc_unregister,
+	)
+
+	return am.rpcEngine.Apply()
 }
 
-func (am *AdapterManager) initialize_rpc_register() error {
+func (am *AdapterManager) rpc_register(ctx *broc.Context) (returnedValue interface{}, err error) {
 
-	connection := am.controller.gravityClient.GetConnection()
-	channel := fmt.Sprintf("%s.adapter_manager.register", am.controller.domain)
+	// Reply
+	reply := pb.RegisterAdapterReply{
+		Success: true,
+	}
+	defer func() {
+		data, e := proto.Marshal(&reply)
+		returnedValue = data
+		err = e
+	}()
 
-	log.WithFields(log.Fields{
-		"name": channel,
-	}).Info("Subscribing to channel")
-
-	_, err := connection.Subscribe(channel, func(m *nats.Msg) {
-
-		// Reply
-		reply := pb.RegisterAdapterReply{
-			Success: true,
-		}
-		defer func() {
-			data, _ := proto.Marshal(&reply)
-			m.Respond(data)
-		}()
-
-		// Parsing request data
-		var req pb.RegisterAdapterRequest
-		err := proto.Unmarshal(m.Data, &req)
-		if err != nil {
-			log.Error(err)
-
-			reply.Success = false
-			reply.Reason = "UnknownParameter"
-			return
-		}
-
-		err = am.Register(req.Component, req.AdapterID, req.Name)
-		if err != nil {
-			log.Error(err)
-
-			reply.Success = false
-			reply.Reason = err.Error()
-			return
-		}
-	})
+	// Parsing request data
+	var req pb.RegisterAdapterRequest
+	payload := ctx.Get("payload").(*packet_pb.Payload)
+	err = proto.Unmarshal(payload.Data, &req)
 	if err != nil {
-		return err
+		log.Error(err)
+
+		reply.Success = false
+		reply.Reason = "UnknownParameter"
+		return
 	}
 
-	return nil
+	// Authenticate
+	key := am.controller.auth.Authenticate(req.AppID, req.Token, am.allowAnonymous)
+	if key == nil {
+		reply.Success = false
+		reply.Reason = "Forbidden"
+		return
+	}
+
+	// Register
+	err = am.Register(req.Component, req.AdapterID, req.Name, key)
+	if err != nil {
+		log.Error(err)
+
+		reply.Success = false
+		reply.Reason = err.Error()
+		return
+	}
+
+	return
 }
 
-func (am *AdapterManager) initialize_rpc_unregister() error {
+func (am *AdapterManager) rpc_unregister(ctx *broc.Context) (returnedValue interface{}, err error) {
 
-	connection := am.controller.gravityClient.GetConnection()
-	channel := fmt.Sprintf("%s.adapter_manager.unregister", am.controller.domain)
+	// Reply
+	reply := pb.UnregisterAdapterReply{
+		Success: true,
+	}
+	defer func() {
+		data, e := proto.Marshal(&reply)
+		returnedValue = data
+		err = e
+	}()
 
-	log.WithFields(log.Fields{
-		"name": channel,
-	}).Info("Subscribing to channel")
-
-	_, err := connection.Subscribe(channel, func(m *nats.Msg) {
-
-		// Reply
-		reply := pb.UnregisterAdapterReply{
-			Success: true,
-		}
-		defer func() {
-			data, _ := proto.Marshal(&reply)
-			m.Respond(data)
-		}()
-
-		// Parsing request data
-		var req pb.UnregisterAdapterRequest
-		err := proto.Unmarshal(m.Data, &req)
-		if err != nil {
-			log.Error(err)
-
-			reply.Success = false
-			reply.Reason = "UnknownParameter"
-			return
-		}
-
-		err = am.Unregister(req.AdapterID)
-		if err != nil {
-			log.Error(err)
-
-			reply.Success = false
-			reply.Reason = err.Error()
-			return
-		}
-	})
+	// Parsing request data
+	var req pb.UnregisterAdapterRequest
+	payload := ctx.Get("payload").(*packet_pb.Payload)
+	err = proto.Unmarshal(payload.Data, &req)
 	if err != nil {
-		return err
+		log.Error(err)
+
+		reply.Success = false
+		reply.Reason = "UnknownParameter"
+		return
 	}
 
-	return nil
+	err = am.Unregister(req.AdapterID)
+	if err != nil {
+		log.Error(err)
+
+		reply.Success = false
+		reply.Reason = err.Error()
+		return
+	}
+
+	return
 }

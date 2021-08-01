@@ -2,15 +2,21 @@ package controller
 
 import (
 	"encoding/json"
+	"errors"
 	"sync"
 
 	"github.com/BrobridgeOrg/broc"
+	synchronizer_pb "github.com/BrobridgeOrg/gravity-api/service/synchronizer"
+	"github.com/BrobridgeOrg/gravity-sdk/core/keyring"
+	"github.com/BrobridgeOrg/gravity-sdk/eventstore"
+	"github.com/golang/protobuf/proto"
 	log "github.com/sirupsen/logrus"
 )
 
 type SynchronizerManager struct {
 	controller    *Controller
 	synchronizers map[string]*Synchronizer
+	eventstore    *eventstore.EventStore
 	rpcEngine     *broc.Broc
 	mutex         sync.RWMutex
 }
@@ -23,6 +29,12 @@ func NewSynchronizerManager(controller *Controller) *SynchronizerManager {
 }
 
 func (sm *SynchronizerManager) Initialize() error {
+
+	// Initializing eventstore
+	authOpts := eventstore.NewOptions()
+	authOpts.Domain = sm.controller.domain
+	authOpts.Key = sm.controller.keyring.Get("gravity")
+	sm.eventstore = eventstore.NewEventStoreWithClient(sm.controller.gravityClient, authOpts)
 
 	// Restore states from store
 	store, err := sm.controller.store.GetEngine().GetStore("gravity_synchronizer_manager")
@@ -108,7 +120,25 @@ func (sm *SynchronizerManager) Register(synchronizerID string) error {
 		"id": synchronizerID,
 	}).Info("Registered synchronizer")
 
-	return synchronizer.save()
+	err = synchronizer.save()
+	if err != nil {
+		return err
+	}
+
+	// Update keyring
+	keys := sm.controller.keyring.GetKeys()
+	keys.Range(func(k interface{}, v interface{}) bool {
+		key := v.(*keyring.KeyInfo)
+		log.WithFields(log.Fields{
+			"id":           key.GetAppID(),
+			"synchronizer": synchronizerID,
+		}).Info("Update key to synchronizer")
+
+		sm.UpdateKeyringBySynchronizer(synchronizerID, key)
+		return true
+	})
+
+	return nil
 }
 
 func (sm *SynchronizerManager) Unregister(synchronizerID string) error {
@@ -155,4 +185,58 @@ func (sm *SynchronizerManager) GetSynchronizer(synchronizerID string) *Synchroni
 	}
 
 	return synchronizer
+}
+
+func (sm *SynchronizerManager) Request(synchronizerID string, method string, data []byte) ([]byte, error) {
+	return sm.eventstore.Request(synchronizerID, method, data)
+}
+
+func (sm *SynchronizerManager) UpdateKeyring(key *keyring.KeyInfo) error {
+
+	for synchronizerID, _ := range sm.GetSynchronizers() {
+
+		err := sm.UpdateKeyringBySynchronizer(synchronizerID, key)
+		if err != nil {
+			continue
+		}
+	}
+
+	return nil
+}
+
+func (sm *SynchronizerManager) UpdateKeyringBySynchronizer(synchronizerID string, key *keyring.KeyInfo) error {
+
+	request := synchronizer_pb.UpdateKeyringRequest{
+		Keys: make([]*synchronizer_pb.Key, 1),
+	}
+
+	entry := synchronizer_pb.Key{
+		AppID:       key.GetAppID(),
+		Key:         key.Encryption().GetKey(),
+		Permissions: key.Permission().GetPermissions(),
+	}
+
+	request.Keys[0] = &entry
+
+	msg, _ := proto.Marshal(&request)
+
+	respData, err := sm.Request(synchronizerID, "updateKeyring", msg)
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+
+	var reply synchronizer_pb.UpdateKeyringReply
+	err = proto.Unmarshal(respData, &reply)
+	if err != nil {
+		log.Error(err)
+		return err
+	}
+
+	if !reply.Success {
+		log.Error(reply.Reason)
+		return errors.New(reply.Reason)
+	}
+
+	return nil
 }

@@ -3,12 +3,9 @@ package controller
 import (
 	"encoding/json"
 	"errors"
-	"fmt"
 	"sync"
-	"time"
 
 	"github.com/BrobridgeOrg/broc"
-	packet_pb "github.com/BrobridgeOrg/gravity-api/packet"
 	subscriber_manager_pb "github.com/BrobridgeOrg/gravity-api/service/subscriber_manager"
 	synchronizer_pb "github.com/BrobridgeOrg/gravity-api/service/synchronizer"
 	"github.com/golang/protobuf/proto"
@@ -38,8 +35,12 @@ func (sm *SubscriberManager) Initialize() error {
 	viper.SetDefault("subscriber_manager.allowAnonymous", true)
 	sm.allowAnonymous = viper.GetBool("subscriber_manager.allowAnonymous")
 	if sm.allowAnonymous {
-		keyInfo := sm.controller.keyring.Put("anonymous", "")
-		keyInfo.Permission().AddPermissions([]string{"SUBSCRIBER"})
+		key := sm.controller.keyring.Get("anonymous")
+		if key == nil {
+			key = sm.controller.keyring.Put("anonymous", "")
+		}
+
+		key.Permission().AddPermissions([]string{"SUBSCRIBER"})
 	}
 
 	// Restore states from store
@@ -106,54 +107,6 @@ func (sm *SubscriberManager) Initialize() error {
 	return nil
 }
 
-func (sm *SubscriberManager) request(eventstoreID string, method string, data []byte, encrypted bool) ([]byte, error) {
-
-	conn := sm.controller.gravityClient.GetConnection()
-
-	// Preparing packet
-	packet := packet_pb.Packet{
-		AppID:   "gravity",
-		Payload: data,
-	}
-
-	// find the key for gravity
-	keyInfo := sm.controller.keyring.Get("gravity")
-	if keyInfo == nil {
-		return []byte(""), errors.New("No access key for gravity")
-	}
-
-	// Encrypt
-	if encrypted {
-		payload, err := keyInfo.Encryption().Encrypt(data)
-		if err != nil {
-			return []byte(""), err
-		}
-
-		packet.Payload = payload
-	}
-
-	msg, _ := proto.Marshal(&packet)
-
-	// Send request
-	channel := fmt.Sprintf("%s.eventstore.%s.%s", sm.controller.domain, eventstoreID, method)
-	resp, err := conn.Request(channel, msg, time.Second*10)
-	if err != nil {
-		return []byte(""), err
-	}
-
-	// Decrypt
-	if encrypted {
-		data, err = keyInfo.Encryption().Decrypt(resp.Data)
-		if err != nil {
-			return []byte(""), err
-		}
-
-		return data, nil
-	}
-
-	return resp.Data, nil
-}
-
 func (sm *SubscriberManager) addSubscriber(subscriberType subscriber_manager_pb.SubscriberType, component string, subscriberID string, name string, properties map[string]interface{}) (*Subscriber, error) {
 
 	sm.mutex.Lock()
@@ -182,7 +135,7 @@ func (sm *SubscriberManager) register(eventstoreID string, subscriberID string, 
 
 	msg, _ := proto.Marshal(&request)
 
-	respData, err := sm.request(eventstoreID, "registerSubscriber", msg, true)
+	respData, err := sm.controller.synchronizerManager.Request(eventstoreID, "registerSubscriber", msg)
 	if err != nil {
 		return err
 	}
@@ -203,26 +156,16 @@ func (sm *SubscriberManager) register(eventstoreID string, subscriberID string, 
 
 func (sm *SubscriberManager) Register(subscriberType subscriber_manager_pb.SubscriberType, component string, appID string, token []byte, subscriberID string, name string, properties map[string]interface{}) error {
 
-	accessKey := ""
-
-	if sm.controller.auth.enabledAuthService {
-		entity, err := sm.controller.auth.authenticator.Authenticate(appID, token)
-		if err != nil {
-			return err
-		}
-
-		properties["auth.appID"] = entity.AppID
-		properties["auth.appKey"] = entity.AccessKey
-		accessKey = entity.AccessKey
-
-		// Add to keyring
-		sm.controller.keyring.Put(entity.AppID, entity.AccessKey)
-	} else if sm.allowAnonymous {
-
-		if appID != "anonymous" {
-			return errors.New("Forbidden")
-		}
+	key := sm.controller.auth.Authenticate(appID, token, sm.allowAnonymous)
+	if key == nil {
+		return errors.New("Forbidden")
 	}
+
+	properties["auth.appID"] = appID
+	properties["auth.appKey"] = string(key.Encryption().GetKey())
+
+	// Update keyring to syncronizer
+	sm.controller.synchronizerManager.UpdateKeyring(key)
 
 	subscriber, err := sm.addSubscriber(subscriberType, component, subscriberID, name, properties)
 	if err != nil {
@@ -245,9 +188,11 @@ func (sm *SubscriberManager) Register(subscriberType subscriber_manager_pb.Subsc
 
 	// call synchronizer api to register subscriber
 	for synchronizerID, _ := range sm.controller.synchronizerManager.GetSynchronizers() {
-		err := sm.register(synchronizerID, subscriberID, appID, accessKey)
+		err := sm.register(synchronizerID, subscriberID, appID, string(key.Encryption().GetKey()))
 		if err != nil {
-			return errors.New("Failed to register subscriber on eventstore: " + synchronizerID)
+			// Ignore
+			log.Errorf("Failed to register subscriber on eventstore: %s", synchronizerID)
+			continue
 		}
 	}
 

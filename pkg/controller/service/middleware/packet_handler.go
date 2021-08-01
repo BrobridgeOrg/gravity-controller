@@ -17,5 +17,18 @@ func (m *Middleware) PacketHandler(ctx *broc.Context) (interface{}, error) {
 
 	ctx.Set("request", &packet)
 
-	return ctx.Next()
+	//	return ctx.Next()
+
+	// Preparing packet
+	p := &packet_pb.Packet{}
+	data, err := ctx.Next()
+	if err != nil {
+		p.Error = true
+		p.Reason = err.Error()
+		return proto.Marshal(p)
+	}
+
+	p.Payload = data.([]byte)
+
+	return proto.Marshal(p)
 }

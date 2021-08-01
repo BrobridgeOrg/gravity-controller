@@ -4,13 +4,18 @@ import (
 	"encoding/json"
 	"sync"
 
+	"github.com/BrobridgeOrg/broc"
+	"github.com/BrobridgeOrg/gravity-sdk/core/keyring"
 	log "github.com/sirupsen/logrus"
+	"github.com/spf13/viper"
 )
 
 type AdapterManager struct {
-	controller *Controller
-	adapters   map[string]*Adapter
-	mutex      sync.RWMutex
+	controller     *Controller
+	allowAnonymous bool
+	rpcEngine      *broc.Broc
+	adapters       map[string]*Adapter
+	mutex          sync.RWMutex
 }
 
 func NewAdapterManager(controller *Controller) *AdapterManager {
@@ -21,6 +26,18 @@ func NewAdapterManager(controller *Controller) *AdapterManager {
 }
 
 func (am *AdapterManager) Initialize() error {
+
+	// Load configurations
+	viper.SetDefault("adapter_manager.allowAnonymous", true)
+	am.allowAnonymous = viper.GetBool("adapter_manager.allowAnonymous")
+	if am.allowAnonymous {
+		key := am.controller.keyring.Get("anonymous")
+		if key == nil {
+			key = am.controller.keyring.Put("anonymous", "")
+		}
+
+		key.Permission().AddPermissions([]string{"ADAPTER"})
+	}
 
 	// Restore states from store
 	store, err := am.controller.store.GetEngine().GetStore("gravity_adapter_manager")
@@ -73,14 +90,14 @@ func (am *AdapterManager) addAdapter(component string, adapterID string, name st
 		return adapter
 	}
 
-	// Create a new synchronizer
+	// Create a new adapter
 	adapter = NewAdapter(am.controller, component, adapterID, name)
 	am.adapters[adapterID] = adapter
 
 	return adapter
 }
 
-func (am *AdapterManager) Register(component string, adapterID string, name string) error {
+func (am *AdapterManager) Register(component string, adapterID string, name string, key *keyring.KeyInfo) error {
 
 	adapter := am.addAdapter(component, adapterID, name)
 
@@ -91,6 +108,9 @@ func (am *AdapterManager) Register(component string, adapterID string, name stri
 	}).Info("Registered Adapter")
 
 	adapter.save()
+
+	// Update keyring to syncronizer
+	am.controller.synchronizerManager.UpdateKeyring(key)
 
 	return nil
 }

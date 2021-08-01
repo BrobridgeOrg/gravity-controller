@@ -50,8 +50,8 @@ func (sm *SynchronizerManager) rpc_register(ctx *broc.Context) (returnedValue in
 
 	// Parsing request data
 	var req synchronizer_manager_pb.RegisterSynchronizerRequest
-	packet := ctx.Get("request").(*packet_pb.Packet)
-	err = proto.Unmarshal(packet.Payload, &req)
+	payload := ctx.Get("payload").(*packet_pb.Payload)
+	err = proto.Unmarshal(payload.Data, &req)
 	if err != nil {
 		log.Error(err)
 
@@ -91,8 +91,8 @@ func (sm *SynchronizerManager) rpc_unregister(ctx *broc.Context) (returnedValue 
 
 	// Parsing request data
 	var req synchronizer_manager_pb.UnregisterSynchronizerRequest
-	packet := ctx.Get("request").(*packet_pb.Packet)
-	err = proto.Unmarshal(packet.Payload, &req)
+	payload := ctx.Get("payload").(*packet_pb.Payload)
+	err = proto.Unmarshal(payload.Data, &req)
 	if err != nil {
 		log.Error(err)
 
@@ -128,8 +128,8 @@ func (sm *SynchronizerManager) rpc_getPipelines(ctx *broc.Context) (returnedValu
 
 	// Parsing request data
 	var req synchronizer_manager_pb.GetPipelinesRequest
-	packet := ctx.Get("request").(*packet_pb.Packet)
-	err = proto.Unmarshal(packet.Payload, &req)
+	payload := ctx.Get("payload").(*packet_pb.Payload)
+	err = proto.Unmarshal(payload.Data, &req)
 	if err != nil {
 		log.Error(err)
 

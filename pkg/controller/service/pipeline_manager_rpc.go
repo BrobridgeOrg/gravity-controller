@@ -47,8 +47,8 @@ func (pm *PipelineManager) rpc_getCount(ctx *broc.Context) (returnedValue interf
 
 	// Parsing request data
 	var req pb.GetPipelineCountRequest
-	packet := ctx.Get("request").(*packet_pb.Packet)
-	err = proto.Unmarshal(packet.Payload, &req)
+	payload := ctx.Get("payload").(*packet_pb.Payload)
+	err = proto.Unmarshal(payload.Data, &req)
 	if err != nil {
 		log.Error(err)
 

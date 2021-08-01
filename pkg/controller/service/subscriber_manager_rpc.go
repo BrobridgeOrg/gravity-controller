@@ -30,14 +30,14 @@ func (sm *SubscriberManager) initializeRPC() error {
 	sm.rpcEngine.SetPrefix(fmt.Sprintf("%s.subscriber_manager.", sm.controller.domain))
 
 	// Register methods
-	sm.rpcEngine.Register("registerSubscriber", sm.rpc_registerSubscriber)
-	sm.rpcEngine.Register("unregisterSubscriber", m.RequiredAuth(), sm.rpc_unregisterSubscriber)
-	sm.rpcEngine.Register("healthCheck", m.RequiredAuth(), sm.rpc_healthCheck)
+	sm.rpcEngine.Register("registerSubscriber", m.RequiredAuth(), sm.rpc_registerSubscriber)
+	sm.rpcEngine.Register("unregisterSubscriber", m.RequiredAuth("SUBSCRIBER"), sm.rpc_unregisterSubscriber)
+	sm.rpcEngine.Register("healthCheck", m.RequiredAuth("SUBSCRIBER"), sm.rpc_healthCheck)
 	sm.rpcEngine.Register("getSubscribers",
 		m.RequiredAuth("SYSTEM", "ADMIN", "SUBSCRIBER_MANAGER_ADMIN"),
 		sm.rpc_getSubscribers,
 	)
-	sm.rpcEngine.Register("subscribeToCollections", m.RequiredAuth(), sm.rpc_subscribeToCollections)
+	sm.rpcEngine.Register("subscribeToCollections", m.RequiredAuth("SUBSCRIBER"), sm.rpc_subscribeToCollections)
 
 	return sm.rpcEngine.Apply()
 }
@@ -56,8 +56,8 @@ func (sm *SubscriberManager) rpc_registerSubscriber(ctx *broc.Context) (returned
 
 	// Parsing request data
 	var req subscriber_manager_pb.RegisterSubscriberRequest
-	packet := ctx.Get("request").(*packet_pb.Packet)
-	err = proto.Unmarshal(packet.Payload, &req)
+	payload := ctx.Get("payload").(*packet_pb.Payload)
+	err = proto.Unmarshal(payload.Data, &req)
 	if err != nil {
 		log.Error(err)
 
@@ -104,8 +104,8 @@ func (sm *SubscriberManager) rpc_unregisterSubscriber(ctx *broc.Context) (return
 
 	// Parsing request data
 	var req subscriber_manager_pb.UnregisterSubscriberRequest
-	packet := ctx.Get("request").(*packet_pb.Packet)
-	err = proto.Unmarshal(packet.Payload, &req)
+	payload := ctx.Get("payload").(*packet_pb.Payload)
+	err = proto.Unmarshal(payload.Data, &req)
 	if err != nil {
 		log.Error(err)
 
@@ -141,8 +141,8 @@ func (sm *SubscriberManager) rpc_healthCheck(ctx *broc.Context) (returnedValue i
 
 	// Parsing request data
 	var req subscriber_manager_pb.HealthCheckRequest
-	packet := ctx.Get("request").(*packet_pb.Packet)
-	err = proto.Unmarshal(packet.Payload, &req)
+	payload := ctx.Get("payload").(*packet_pb.Payload)
+	err = proto.Unmarshal(payload.Data, &req)
 	if err != nil {
 		log.Error(err)
 
@@ -177,8 +177,8 @@ func (sm *SubscriberManager) rpc_getSubscribers(ctx *broc.Context) (returnedValu
 
 	// Parsing request data
 	var req subscriber_manager_pb.GetSubscribersRequest
-	packet := ctx.Get("request").(*packet_pb.Packet)
-	err = proto.Unmarshal(packet.Payload, &req)
+	payload := ctx.Get("payload").(*packet_pb.Payload)
+	err = proto.Unmarshal(payload.Data, &req)
 	if err != nil {
 		log.Error(err)
 
@@ -238,8 +238,8 @@ func (sm *SubscriberManager) rpc_subscribeToCollections(ctx *broc.Context) (retu
 
 	// Parsing request data
 	var req subscriber_manager_pb.SubscribeToCollectionsRequest
-	packet := ctx.Get("request").(*packet_pb.Packet)
-	err = proto.Unmarshal(packet.Payload, &req)
+	payload := ctx.Get("payload").(*packet_pb.Payload)
+	err = proto.Unmarshal(payload.Data, &req)
 	if err != nil {
 		log.Error(err)
 
