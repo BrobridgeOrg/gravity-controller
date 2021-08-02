@@ -144,6 +144,7 @@ func (pm *PipelineManager) DispatchPipeline(pipeline *Pipeline) bool {
 	// Assign pipeline to client
 	err := found.AssignPipeline(pipeline.id)
 	if err != nil {
+		log.Error(err)
 		return false
 	}
 

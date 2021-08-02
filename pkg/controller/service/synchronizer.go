@@ -10,6 +10,7 @@ import (
 	synchronizer_pb "github.com/BrobridgeOrg/gravity-api/service/synchronizer"
 	"github.com/golang/protobuf/proto"
 	"github.com/nats-io/nats.go"
+	log "github.com/sirupsen/logrus"
 )
 
 type Synchronizer struct {
@@ -28,6 +29,12 @@ func NewSynchronizer(sm *SynchronizerManager, id string) *Synchronizer {
 
 func (synchronizer *Synchronizer) request(eventstoreID string, method string, data []byte, encrypted bool) ([]byte, error) {
 
+	// find the key for gravity
+	keyInfo := synchronizer.synchronizerManager.controller.keyring.Get("gravity")
+	if keyInfo == nil {
+		return []byte(""), errors.New("No access key for gravity")
+	}
+
 	conn := synchronizer.synchronizerManager.controller.gravityClient.GetConnection()
 
 	// Preparing payload
@@ -41,12 +48,6 @@ func (synchronizer *Synchronizer) request(eventstoreID string, method string, da
 	packet := packet_pb.Packet{
 		AppID:   "gravity",
 		Payload: payloadData,
-	}
-
-	// find the key for gravity
-	keyInfo := synchronizer.synchronizerManager.controller.keyring.Get("gravity")
-	if keyInfo == nil {
-		return []byte(""), errors.New("No access key for gravity")
 	}
 
 	// Encrypt
@@ -68,9 +69,16 @@ func (synchronizer *Synchronizer) request(eventstoreID string, method string, da
 		return []byte(""), err
 	}
 
+	// Parsing data
+	err = proto.Unmarshal(resp.Data, &packet)
+	if err != nil {
+		log.Error(err)
+		return []byte(""), errors.New("Forbidden")
+	}
+
 	// Decrypt
 	if encrypted {
-		data, err = keyInfo.Encryption().Decrypt(resp.Data)
+		data, err := keyInfo.Encryption().Decrypt(packet.Payload)
 		if err != nil {
 			return []byte(""), err
 		}
@@ -78,7 +86,7 @@ func (synchronizer *Synchronizer) request(eventstoreID string, method string, da
 		return data, nil
 	}
 
-	return resp.Data, nil
+	return packet.Payload, nil
 }
 
 func (synchronizer *Synchronizer) save() error {
