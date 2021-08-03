@@ -214,6 +214,7 @@ func (sm *SynchronizerManager) UpdateKeyringBySynchronizer(synchronizerID string
 		AppID:       key.GetAppID(),
 		Key:         key.Encryption().GetKey(),
 		Permissions: key.Permission().GetPermissions(),
+		Collections: key.Collection().GetCollections(),
 	}
 
 	request.Keys[0] = &entry

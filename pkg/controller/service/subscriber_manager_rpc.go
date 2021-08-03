@@ -7,6 +7,7 @@ import (
 	packet_pb "github.com/BrobridgeOrg/gravity-api/packet"
 	subscriber_manager_pb "github.com/BrobridgeOrg/gravity-api/service/subscriber_manager"
 	"github.com/BrobridgeOrg/gravity-controller/pkg/controller/service/middleware"
+	"github.com/BrobridgeOrg/gravity-sdk/core/keyring"
 	"github.com/golang/protobuf/proto"
 	"github.com/golang/protobuf/ptypes"
 	log "github.com/sirupsen/logrus"
@@ -245,6 +246,31 @@ func (sm *SubscriberManager) rpc_subscribeToCollections(ctx *broc.Context) (retu
 
 		reply.Success = false
 		reply.Reason = "UnknownParameter"
+		return
+	}
+
+	if len(req.Collections) == 0 {
+		reply.Success = false
+		reply.Reason = "InvalidParameters"
+		return
+	}
+
+	// Check collection permission
+	key := ctx.Get("key").(*keyring.KeyInfo)
+	targetCollections := make([]string, 0)
+	for _, collection := range req.Collections {
+
+		// Ignore collection that no permission to access
+		if !key.Collection().Check(collection) {
+			continue
+		}
+
+		targetCollections = append(targetCollections, collection)
+	}
+
+	if len(targetCollections) == 0 {
+		reply.Success = false
+		reply.Reason = "NoPermission"
 		return
 	}
 

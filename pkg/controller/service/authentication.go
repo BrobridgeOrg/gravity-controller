@@ -68,6 +68,11 @@ func (auth *Authentication) Authenticate(appID string, token []byte, allowAnonym
 			key.Permission().AddPermissions(v.([]string))
 		}
 
+		// Load collection permissions
+		if v, ok := entity.Properties["collections"]; ok {
+			key.Collection().AddCollections(v.([]string))
+		}
+
 		return key
 	}
 
