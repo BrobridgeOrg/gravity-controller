@@ -133,3 +133,16 @@ func (am *AdapterManager) Unregister(adapterID string) error {
 
 	return nil
 }
+
+func (am *AdapterManager) GetAdapters() ([]*Adapter, error) {
+
+	am.mutex.RLock()
+	defer am.mutex.RUnlock()
+
+	adapters := make([]*Adapter, 0, len(am.adapters))
+	for _, adapter := range am.adapters {
+		adapters = append(adapters, adapter)
+	}
+
+	return adapters, nil
+}

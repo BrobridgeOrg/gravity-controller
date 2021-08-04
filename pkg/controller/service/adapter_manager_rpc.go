@@ -30,14 +30,9 @@ func (am *AdapterManager) initialize_rpc() error {
 	am.rpcEngine.SetPrefix(fmt.Sprintf("%s.adapter_manager.", am.controller.domain))
 
 	// Register methods
-	am.rpcEngine.Register("register",
-		m.RequiredAuth("ADAPTER"),
-		am.rpc_register,
-	)
-	am.rpcEngine.Register("unregister",
-		m.RequiredAuth("ADAPTER"),
-		am.rpc_unregister,
-	)
+	am.rpcEngine.Register("register", m.RequiredAuth("ADAPTER"), am.rpc_register)
+	am.rpcEngine.Register("unregister", m.RequiredAuth("ADAPTER"), am.rpc_unregister)
+	am.rpcEngine.Register("getAdapters", m.RequiredAuth("SYSTEM", "ADAPTER_MANAGER"), am.rpc_getAdapters)
 
 	return am.rpcEngine.Apply()
 }
@@ -119,6 +114,56 @@ func (am *AdapterManager) rpc_unregister(ctx *broc.Context) (returnedValue inter
 		reply.Reason = err.Error()
 		return
 	}
+
+	return
+}
+
+func (am *AdapterManager) rpc_getAdapters(ctx *broc.Context) (returnedValue interface{}, err error) {
+
+	// Reply
+	reply := pb.GetAdaptersReply{
+		Success: true,
+	}
+	defer func() {
+		data, e := proto.Marshal(&reply)
+		returnedValue = data
+		err = e
+	}()
+
+	// Parsing request data
+	var req pb.GetAdaptersRequest
+	payload := ctx.Get("payload").(*packet_pb.Payload)
+	err = proto.Unmarshal(payload.Data, &req)
+	if err != nil {
+		log.Error(err)
+
+		reply.Success = false
+		reply.Reason = "UnknownParameter"
+		return
+	}
+
+	// Gettting adapter list
+	results, err := am.GetAdapters()
+	if err != nil {
+		log.Error(err)
+
+		reply.Success = false
+		reply.Reason = err.Error()
+		return
+	}
+
+	// Preparing results
+	adapters := make([]*pb.Adapter, 0, len(results))
+	for _, adapter := range results {
+
+		adapters = append(adapters, &pb.Adapter{
+			AdapterID: adapter.id,
+			Name:      adapter.name,
+			Component: adapter.component,
+		})
+	}
+
+	reply.Adapters = adapters
 
 	return
 }

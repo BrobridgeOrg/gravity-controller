@@ -35,7 +35,7 @@ func (sm *SubscriberManager) initializeRPC() error {
 	sm.rpcEngine.Register("unregisterSubscriber", m.RequiredAuth("SUBSCRIBER"), sm.rpc_unregisterSubscriber)
 	sm.rpcEngine.Register("healthCheck", m.RequiredAuth("SUBSCRIBER"), sm.rpc_healthCheck)
 	sm.rpcEngine.Register("getSubscribers",
-		m.RequiredAuth("SYSTEM", "ADMIN", "SUBSCRIBER_MANAGER_ADMIN"),
+		m.RequiredAuth("SYSTEM", "SUBSCRIBER_MANAGER"),
 		sm.rpc_getSubscribers,
 	)
 	sm.rpcEngine.Register("subscribeToCollections", m.RequiredAuth("SUBSCRIBER"), sm.rpc_subscribeToCollections)
