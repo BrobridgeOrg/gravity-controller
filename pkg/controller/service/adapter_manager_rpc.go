@@ -153,14 +153,14 @@ func (am *AdapterManager) rpc_getAdapters(ctx *broc.Context) (returnedValue inte
 	}
 
 	// Preparing results
-	adapters := make([]*pb.Adapter, 0, len(results))
-	for _, adapter := range results {
+	adapters := make([]*pb.Adapter, len(results))
+	for i, adapter := range results {
 
-		adapters = append(adapters, &pb.Adapter{
+		adapters[i] = &pb.Adapter{
 			AdapterID: adapter.id,
 			Name:      adapter.name,
 			Component: adapter.component,
-		})
+		}
 	}
 
 	reply.Adapters = adapters

@@ -199,8 +199,8 @@ func (sm *SubscriberManager) rpc_getSubscribers(ctx *broc.Context) (returnedValu
 	}
 
 	// Preparing results
-	subscribers := make([]*subscriber_manager_pb.Subscriber, 0, len(results))
-	for _, subscriber := range results {
+	subscribers := make([]*subscriber_manager_pb.Subscriber, len(results))
+	for i, subscriber := range results {
 
 		lastCheck, _ := ptypes.TimestampProto(subscriber.lastCheck)
 
@@ -210,14 +210,14 @@ func (sm *SubscriberManager) rpc_getSubscribers(ctx *broc.Context) (returnedValu
 			appID = v.(string)
 		}
 
-		subscribers = append(subscribers, &subscriber_manager_pb.Subscriber{
+		subscribers[i] = &subscriber_manager_pb.Subscriber{
 			SubscriberID: subscriber.id,
 			Name:         subscriber.name,
 			Type:         subscriber.subscriberType,
 			Component:    subscriber.component,
 			LastCheck:    lastCheck,
 			AppID:        appID,
-		})
+		}
 	}
 
 	reply.Subscribers = subscribers

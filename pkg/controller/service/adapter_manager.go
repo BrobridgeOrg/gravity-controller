@@ -101,16 +101,16 @@ func (am *AdapterManager) Register(component string, adapterID string, name stri
 
 	adapter := am.addAdapter(component, adapterID, name)
 
+	adapter.save()
+
+	// Update keyring to syncronizer
+	am.controller.synchronizerManager.UpdateKeyring(key)
+
 	log.WithFields(log.Fields{
 		"component": component,
 		"id":        adapterID,
 		"name":      name,
 	}).Info("Registered Adapter")
-
-	adapter.save()
-
-	// Update keyring to syncronizer
-	am.controller.synchronizerManager.UpdateKeyring(key)
 
 	return nil
 }
