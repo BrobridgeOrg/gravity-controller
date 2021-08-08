@@ -42,7 +42,7 @@ func (am *AdapterManager) Initialize() error {
 	// Restore states from store
 	store, err := am.controller.store.GetEngine().GetStore("gravity_adapter_manager")
 	if err != nil {
-		return nil
+		return err
 	}
 
 	err = store.RegisterColumns([]string{"adapters"})

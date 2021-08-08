@@ -25,6 +25,7 @@ type Controller struct {
 	synchronizerManager *SynchronizerManager
 	pipelineManager     *PipelineManager
 	subscriberManager   *SubscriberManager
+	collectionManager   *CollectionManager
 	store               *gravity_store.Store
 }
 
@@ -40,6 +41,7 @@ func NewController(a app.App) *Controller {
 	controller.synchronizerManager = NewSynchronizerManager(controller)
 	controller.pipelineManager = NewPipelineManager(controller)
 	controller.subscriberManager = NewSubscriberManager(controller)
+	controller.collectionManager = NewCollectionManager(controller)
 
 	return controller
 }
@@ -78,6 +80,13 @@ func (controller *Controller) Init() error {
 	if err != nil {
 		log.Error(err)
 		return err
+	}
+
+	// Initializing collection  manager
+	err = controller.collectionManager.Initialize()
+	if err != nil {
+		log.Error(err)
+		return nil
 	}
 
 	// Initializing adapter manager
