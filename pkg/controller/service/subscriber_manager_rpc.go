@@ -215,6 +215,7 @@ func (sm *SubscriberManager) rpc_getSubscribers(ctx *broc.Context) (returnedValu
 			Name:         subscriber.name,
 			Type:         subscriber.subscriberType,
 			Component:    subscriber.component,
+			Collections:  subscriber.GetCollections(),
 			LastCheck:    lastCheck,
 			AppID:        appID,
 		}

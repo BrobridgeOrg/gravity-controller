@@ -171,3 +171,14 @@ func (sc *Subscriber) UnsubscribeFromCollections(collections []string) ([]string
 
 	return collections, nil
 }
+
+func (sc *Subscriber) GetCollections() []string {
+
+	collections := make([]string, 0)
+	sc.collections.Range(func(k interface{}, v interface{}) bool {
+		collections = append(collections, k.(string))
+		return true
+	})
+
+	return collections
+}
