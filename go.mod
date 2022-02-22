@@ -3,23 +3,24 @@ module github.com/BrobridgeOrg/gravity-controller
 go 1.13
 
 require (
-	github.com/BrobridgeOrg/broc v0.0.2
-	github.com/BrobridgeOrg/gravity-api v0.2.24
-	github.com/BrobridgeOrg/gravity-sdk v0.0.38
-	github.com/cfsghost/grpc-connection-pool v0.6.0
-	github.com/golang/protobuf v1.5.2
-	github.com/konsorten/go-windows-terminal-sequences v1.0.3 // indirect
-	github.com/nats-io/nats.go v1.11.0
-	github.com/prometheus/common v0.4.0
-	github.com/sirupsen/logrus v1.8.1
-	github.com/soheilhy/cmux v0.1.4
-	github.com/spf13/viper v1.7.1
-	golang.org/x/net v0.0.0-20210226172049-e18ecbb05110
-	google.golang.org/grpc v1.32.0
+	github.com/BrobridgeOrg/gravity-dispatcher v0.0.0-20220206181110-2ea65aa048be
+	github.com/BrobridgeOrg/gravity-sdk v0.0.50
+	github.com/BrobridgeOrg/schemer v0.0.10
+	github.com/BrobridgeOrg/sequential-data-flow v0.0.1
+	github.com/d5/tengo v1.24.8
+	github.com/google/uuid v1.1.2
+	github.com/json-iterator/go v1.1.12
+	github.com/lithammer/go-jump-consistent-hash v1.0.2
+	github.com/nats-io/nats.go v1.13.1-0.20220121202836-972a071d373d
+	github.com/spf13/cobra v1.3.0
+	github.com/spf13/viper v1.10.1
+	go.uber.org/fx v1.16.0
+	go.uber.org/zap v1.17.0
+	golang.org/x/net v0.0.0-20211112202133-69e39bad7dc2 // indirect
 )
 
 //replace github.com/BrobridgeOrg/gravity-api => ../gravity-api
 
-//replace github.com/BrobridgeOrg/gravity-sdk => ../gravity-sdk
+replace github.com/BrobridgeOrg/gravity-sdk => ../../gravity-sdk
 
 //replace github.com/BrobridgeOrg/broc => ../../broc
