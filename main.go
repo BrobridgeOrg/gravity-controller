@@ -7,6 +7,7 @@ import (
 	"github.com/BrobridgeOrg/gravity-controller/pkg/connector"
 	"github.com/BrobridgeOrg/gravity-controller/pkg/controller"
 	"github.com/BrobridgeOrg/gravity-controller/pkg/logger"
+	"github.com/BrobridgeOrg/gravity-controller/pkg/rpc"
 	"github.com/spf13/cobra"
 
 	"go.uber.org/fx"
@@ -52,8 +53,9 @@ func run() error {
 		fx.Provide(
 			logger.GetLogger,
 			connector.New,
+			controller.New,
 		),
-		fx.Invoke(controller.New),
+		fx.Invoke(rpc.New),
 		fx.NopLogger,
 	).Run()
 

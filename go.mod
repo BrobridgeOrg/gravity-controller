@@ -5,6 +5,7 @@ go 1.13
 require (
 	github.com/BrobridgeOrg/gravity-dispatcher v0.0.0-20220206181110-2ea65aa048be
 	github.com/BrobridgeOrg/gravity-sdk v0.0.50
+	github.com/BrobridgeOrg/gravity-snapshot v0.0.0-20220213082459-fd38b9058d95
 	github.com/BrobridgeOrg/schemer v0.0.10
 	github.com/BrobridgeOrg/sequential-data-flow v0.0.1
 	github.com/d5/tengo v1.24.8
