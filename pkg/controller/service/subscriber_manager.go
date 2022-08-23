@@ -13,6 +13,10 @@ import (
 	"github.com/spf13/viper"
 )
 
+var (
+	ErrSubscriberNotFound = errors.New("subscriber manager: subscriber not found")
+)
+
 type SubscriberManager struct {
 	controller     *Controller
 	allowAnonymous bool
@@ -226,6 +230,30 @@ func (sm *SubscriberManager) Unregister(subscriberID string) error {
 	// Remove subscriber from registry
 	delete(sm.subscribers, subscriberID)
 
+	return nil
+}
+
+func (sm *SubscriberManager) UpdateSubscriberProps(subscriberID string, props map[string]interface{}) error {
+
+	sm.mutex.RLock()
+	defer sm.mutex.RUnlock()
+
+	s, ok := sm.subscribers[subscriberID]
+	if !ok {
+		return ErrSubscriberNotFound
+	}
+
+	for name, value := range props {
+		s.properties[name] = value
+	}
+
+	// Save state
+	err := s.save()
+	if err != nil {
+		log.Error(err)
+
+		return err
+	}
 	return nil
 }
 

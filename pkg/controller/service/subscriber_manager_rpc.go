@@ -33,6 +33,7 @@ func (sm *SubscriberManager) initializeRPC() error {
 	// Register methods
 	sm.rpcEngine.Register("registerSubscriber", m.RequiredAuth(), sm.rpc_registerSubscriber)
 	sm.rpcEngine.Register("unregisterSubscriber", m.RequiredAuth("SUBSCRIBER"), sm.rpc_unregisterSubscriber)
+	sm.rpcEngine.Register("updateSubscriberProps", m.RequiredAuth("SUBSCRIBER"), sm.rpc_updateSubscriberProps)
 	sm.rpcEngine.Register("healthCheck", m.RequiredAuth("SUBSCRIBER"), sm.rpc_healthCheck)
 	sm.rpcEngine.Register("getSubscribers",
 		m.RequiredAuth("SYSTEM", "SUBSCRIBER_MANAGER"),
@@ -128,6 +129,59 @@ func (sm *SubscriberManager) rpc_unregisterSubscriber(ctx *broc.Context) (return
 	return
 }
 
+func (sm *SubscriberManager) rpc_updateSubscriberProps(ctx *broc.Context) (returnedValue interface{}, err error) {
+
+	// Reply
+	reply := subscriber_manager_pb.UpdateSubscriberPropsReply{
+		Success: true,
+	}
+	defer func() {
+		data, e := proto.Marshal(&reply)
+		returnedValue = data
+		err = e
+	}()
+
+	// Parsing request data
+	var req subscriber_manager_pb.UpdateSubscriberPropsRequest
+	payload := ctx.Get("payload").(*packet_pb.Payload)
+	err = proto.Unmarshal(payload.Data, &req)
+	if err != nil {
+		log.Error(err)
+
+		reply.Success = false
+		reply.Reason = "UnknownParameter"
+		return
+	}
+
+	// Register subscriber on all synchronizers
+	props := make(map[string]interface{})
+
+	// Update pipelines
+	if len(req.Pipelines) > 0 {
+		pipelines := make([]uint64, len(req.Pipelines))
+
+		for _, pid := range req.Pipelines {
+			pipelines = append(pipelines, pid)
+		}
+
+		props["pipelines"] = pipelines
+	}
+
+	err = sm.UpdateSubscriberProps(
+		req.SubscriberID,
+		props,
+	)
+	if err != nil {
+		log.Error(err)
+
+		reply.Success = false
+		reply.Reason = err.Error()
+		return
+	}
+
+	return
+}
+
 func (sm *SubscriberManager) rpc_healthCheck(ctx *broc.Context) (returnedValue interface{}, err error) {
 
 	// Reply
@@ -210,7 +264,7 @@ func (sm *SubscriberManager) rpc_getSubscribers(ctx *broc.Context) (returnedValu
 			appID = v.(string)
 		}
 
-		subscribers[i] = &subscriber_manager_pb.Subscriber{
+		s := &subscriber_manager_pb.Subscriber{
 			SubscriberID: subscriber.id,
 			Name:         subscriber.name,
 			Type:         subscriber.subscriberType,
@@ -219,6 +273,28 @@ func (sm *SubscriberManager) rpc_getSubscribers(ctx *broc.Context) (returnedValu
 			LastCheck:    lastCheck,
 			AppID:        appID,
 		}
+
+		// Collections
+		if subscriber.properties["collections"] != nil {
+			collections := make([]string, 0)
+			for _, c := range subscriber.properties["collections"].([]string) {
+				collections = append(collections, c)
+			}
+
+			s.Collections = collections
+		}
+
+		// Pipelines
+		if subscriber.properties["pipelines"] != nil {
+			pipelines := make([]uint64, 0)
+			for _, pid := range subscriber.properties["pipelines"].([]uint64) {
+				pipelines = append(pipelines, pid)
+			}
+
+			s.Pipelines = pipelines
+		}
+
+		subscribers[i] = s
 	}
 
 	reply.Subscribers = subscribers
