@@ -290,7 +290,8 @@ func (sm *SubscriberManager) rpc_getSubscribers(ctx *broc.Context) (returnedValu
 		// Pipelines
 		if subscriber.properties["pipelines"] != nil {
 			pipelines := make([]uint64, 0)
-			for _, pid := range subscriber.properties["pipelines"].([]uint64) {
+			for _, iface := range subscriber.properties["pipelines"].([]interface{}) {
+				pid := iface.(uint64)
 				pipelines = append(pipelines, pid)
 			}
 
