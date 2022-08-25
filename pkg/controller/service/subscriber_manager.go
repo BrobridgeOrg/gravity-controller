@@ -65,6 +65,20 @@ func (sm *SubscriberManager) Initialize() error {
 		var data map[string]interface{}
 		json.Unmarshal(value, &data)
 
+		// Pipeline type conversion (JSON uses float64 for number but uint64 is what we need)
+		if v, ok := data["properties"]; ok {
+			props := v.(map[string]interface{})
+			if props["pipelines"] != nil {
+				pipelines := make([]uint64, 0)
+				for _, iface := range props["pipelines"].([]interface{}) {
+					pid := uint64(iface.(float64))
+					pipelines = append(pipelines, pid)
+				}
+
+				props["pipelines"] = pipelines
+			}
+		}
+
 		subscriber, err := sm.addSubscriber(
 			subscriber_manager_pb.SubscriberType(data["type"].(float64)),
 			data["component"].(string),
