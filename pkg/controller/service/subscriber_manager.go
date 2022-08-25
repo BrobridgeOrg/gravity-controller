@@ -69,7 +69,7 @@ func (sm *SubscriberManager) Initialize() error {
 		if v, ok := data["properties"]; ok {
 			props := v.(map[string]interface{})
 			if props["pipelines"] != nil {
-				pipelines := make([]uint64, 0)
+				pipelines := make([]interface{}, 0)
 				for _, iface := range props["pipelines"].([]interface{}) {
 					pid := uint64(iface.(float64))
 					pipelines = append(pipelines, pid)
