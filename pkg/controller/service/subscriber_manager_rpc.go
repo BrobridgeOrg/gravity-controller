@@ -161,7 +161,7 @@ func (sm *SubscriberManager) rpc_updateSubscriberProps(ctx *broc.Context) (retur
 
 	// Update pipelines
 	if len(req.Pipelines) > 0 {
-		pipelines := make([]uint64, len(req.Pipelines))
+		pipelines := make([]interface{}, len(req.Pipelines))
 
 		for _, pid := range req.Pipelines {
 			pipelines = append(pipelines, pid)
